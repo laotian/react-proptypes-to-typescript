@@ -1,6 +1,8 @@
 import * as ts from 'typescript';
 import * as _ from 'lodash';
 import * as helpers from '../helpers';
+import {Token} from 'typescript';
+import {SyntaxKind} from 'typescript';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
@@ -37,7 +39,7 @@ export function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.Ty
 function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker) {
     helpers.visitor(sourceFile.statements, statement => {
         if (ts.isClassExpression(statement) || ts.isClassDeclaration(statement)) {
-            const propertyDeclaration = getInstancePropertiesFromClassStatement(statement, typeChecker);
+            const propertyDeclaration = getInstancePropertiesFromClassStatement(statement, typeChecker, sourceFile);
             statement.members = ts.createNodeArray([...propertyDeclaration, ...statement.members]);
         }
     });
@@ -53,6 +55,7 @@ function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker)
 function getInstancePropertiesFromClassStatement(
     classStatement: ts.ClassExpression | ts.ClassDeclaration,
     typeChecker: ts.TypeChecker,
+    sourceFile: ts.SourceFile,
 ): Array<ts.PropertyDeclaration> {
     const propertyDeclarations: Array<ts.PropertyDeclaration> = [];
     const memberNames = classStatement.members.map(member => {
@@ -120,7 +123,7 @@ function getInstancePropertiesFromClassStatement(
 
                 const propertyDeclaration = ts.createProperty(
                     [], // decorator
-                    [], // modifiter
+                    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Private), // modifier
                     propertyName,
                     undefined,
                     typeNode,
@@ -138,6 +141,24 @@ function getInstancePropertiesFromClassStatement(
         if (n < m) return -1;
         return 0;
     });
+
+    const hasDefaultProps = memberNames.find(value => value == 'defaultProps');
+    if(hasDefaultProps) {
+        const className = classStatement && classStatement.name && classStatement.name.getText(sourceFile);
+        const propsTypes = ts.createIntersectionTypeNode([
+            ts.createTypeReferenceNode(`${className}Props`, []),
+            ts.createTypeReferenceNode(`typeof ${className}.defaultProps`, []),
+        ]);
+        const propertyDeclaration = ts.createProperty(
+            [], // decorator
+            [], // modifier
+            "props",
+            ts.createToken(ts.SyntaxKind.ExclamationToken),
+            propsTypes,
+            undefined,
+        );
+        propertyDeclarations.push(propertyDeclaration);
+    }
 
     return propertyDeclarations;
 }

@@ -48,7 +48,7 @@ function visitReactClassDeclaration(
     const states = getStatesOfReactComponentClass(classDeclaration, typeChecker);
     const shouldMakePropTypeDeclaration = interfaceMembers.length > 0;
     const shouldMakeStateTypeDeclaration = !isStateMemberEmpty(states);
-    const propTypeName = `I${className}Props`;
+    const propTypeName = `${className}Props`;
     const stateTypeName = `${className}State`;
     const interfaceHeritageClause = createInterfaceHeritageClause();
     const propsInterfaceDeclaration = ts.createInterfaceDeclaration(
@@ -56,7 +56,7 @@ function visitReactClassDeclaration(
         [],
         propTypeName,
         [],
-        [interfaceHeritageClause],
+        [],
         interfaceMembers,
     );
 
