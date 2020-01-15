@@ -10,6 +10,7 @@ import { reactRemoveStaticPropTypesMemberTransformFactoryFactory } from './trans
 import { reactStatelessFunctionMakePropsTransformFactoryFactory } from './transforms/react-stateless-function-make-props-transform';
 import { reactRemovePropTypesImportTransformFactoryFactory } from './transforms/react-remove-prop-types-import';
 import { classInstanceVariablesTransformFactoryFactory } from './transforms/class-instance-variables-transform';
+import {pluginTransformFactoryFactory} from './transforms/plugin-transform';
 
 export {
     reactMovePropTypesToClassTransformFactoryFactory,
@@ -44,6 +45,7 @@ export function run(
     filePath: string,
     prettierOptions: prettier.Options = {},
     compilationOptions: CompilationOptions = DEFAULT_COMPILATION_OPTIONS,
+    pluginMode: boolean,
 ): string {
-    return compile(filePath, allTransforms, prettierOptions, compilationOptions);
+    return compile(filePath, pluginMode ? [pluginTransformFactoryFactory] : allTransforms, prettierOptions, compilationOptions);
 }

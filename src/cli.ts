@@ -45,6 +45,7 @@ program
     .option('--remove-original-files', 'remove original files', false)
     .option('--keep-temporary-files', 'Keep temporary files', false)
     .option('--print', 'print output to console', false)
+    .option('--plugin-mode','仅处理插件', false)
     .usage('[options] <filename or glob>')
     .command('* [glob/filename...]')
     .action((globPatterns: string[]) => {
@@ -73,12 +74,13 @@ program
                 continue;
             }
             console.log(`Transforming ${filePath}...`);
-            const extension = getExtension(filePath);
+            const pluginMode = !!program.pluginMode;
+            const extension = getExtension(filePath, pluginMode);
             const newPath = filePath.replace(/\.jsx?$/, extension);
             const temporaryPath = filePath + `_js2ts_${+new Date()}${extension}`;
             try {
                 fs.copyFileSync(filePath, temporaryPath);
-                const result = run(temporaryPath, prettierOptions, compilationOptions);
+                const result = run(temporaryPath, prettierOptions, compilationOptions, pluginMode);
                 if (program.print) {
                     console.log('result:\n', result);
                 }
@@ -104,9 +106,9 @@ program
 
 program.parse(process.argv);
 
-function getExtension(filePath: string): string {
+function getExtension(filePath: string, pluginMode: boolean): string {
     const text = fs.readFileSync(filePath, 'utf8');
-    if (text.match(/<\w+/) && (text.match(/<\//) || text.match(/\/>/))) {
+    if (!pluginMode && text.match(/<\w+/) && (text.match(/<\//) || text.match(/\/>/))) {
         return '.tsx';
     } else {
         return '.ts';
