@@ -142,23 +142,23 @@ function getInstancePropertiesFromClassStatement(
         return 0;
     });
 
-    const hasDefaultProps = memberNames.find(value => value == 'defaultProps');
-    if(hasDefaultProps) {
-        const className = classStatement && classStatement.name && classStatement.name.getText(sourceFile);
-        const propsTypes = ts.createIntersectionTypeNode([
-            ts.createTypeReferenceNode(`${className}Props`, []),
-            ts.createTypeReferenceNode(`typeof ${className}.defaultProps`, []),
-        ]);
-        const propertyDeclaration = ts.createProperty(
-            [], // decorator
-            [], // modifier
-            "props",
-            ts.createToken(ts.SyntaxKind.ExclamationToken),
-            propsTypes,
-            undefined,
-        );
-        propertyDeclarations.push(propertyDeclaration);
-    }
+    // const hasDefaultProps = memberNames.find(value => value == 'defaultProps');
+    // if(hasDefaultProps) {
+    //     const className = classStatement && classStatement.name && classStatement.name.getText(sourceFile);
+    //     const propsTypes = ts.createIntersectionTypeNode([
+    //         ts.createTypeReferenceNode(`${className}Props`, []),
+    //         ts.createTypeReferenceNode(`typeof ${className}.defaultProps`, []),
+    //     ]);
+    //     const propertyDeclaration = ts.createProperty(
+    //         [], // decorator
+    //         [], // modifier
+    //         "props",
+    //         ts.createToken(ts.SyntaxKind.ExclamationToken),
+    //         propsTypes,
+    //         undefined,
+    //     );
+    //     propertyDeclarations.push(propertyDeclaration);
+    // }
 
     return propertyDeclarations;
 }
