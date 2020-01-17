@@ -39,7 +39,7 @@ export function isReactComponent(
         typeSymbol = expressionWithTypeArguments.expression.getText();
     }
 
-    if (!/React\.Component|Component/.test(typeSymbol)) {
+    if (!/React\.Component|Component|JDBBaseContainer/.test(typeSymbol)) {
         return false;
     }
 
