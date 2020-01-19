@@ -7,6 +7,7 @@ import * as prettier from 'prettier';
 
 import { run } from '.';
 import { CompilationOptions } from './compiler';
+import check from './check';
 
 function resolveGlobs(globPatterns: string[]): string[] {
     const files: string[] = [];
@@ -19,7 +20,9 @@ function resolveGlobs(globPatterns: string[]): string[] {
     globPatterns.forEach(pattern => {
         if (/[{}*?+\[\]]/.test(pattern)) {
             // Smells like globs
-            glob.sync(pattern, {}).forEach(file => {
+            glob.sync(pattern, {
+                absolute: true,
+            }).forEach(file => {
                 addFile(file);
             });
         } else {
@@ -45,7 +48,8 @@ program
     .option('--remove-original-files', 'remove original files', false)
     .option('--keep-temporary-files', 'Keep temporary files', false)
     .option('--print', 'print output to console', false)
-    .option('--plugin-mode','仅处理插件', false)
+    .option('--plugin-mode', '仅处理插件', false)
+    .option('--check', '检查手动修是否存在问题', false)
     .usage('[options] <filename or glob>')
     .command('* [glob/filename...]')
     .action((globPatterns: string[]) => {
@@ -69,33 +73,47 @@ program
             throw new Error('Nothing to do. You must provide file names or glob patterns to transform.');
         }
         let errors = false;
-        for (const filePath of files) {
-            if (!fs.existsSync(filePath)) {
-                continue;
-            }
-            console.log(`Transforming ${filePath}...`);
-            const pluginMode = !!program.pluginMode;
-            const extension = getExtension(filePath, pluginMode);
-            const newPath = filePath.replace(/\.jsx?$/, extension);
-            const temporaryPath = filePath + `_js2ts_${+new Date()}${extension}`;
-            try {
-                fs.copyFileSync(filePath, temporaryPath);
-                const result = run(temporaryPath, prettierOptions, compilationOptions, pluginMode);
-                if (program.print) {
-                    console.log('result:\n', result);
+
+        if (program.check) {
+            for (const filePath of files) {
+                if (!fs.existsSync(filePath)) {
+                    continue;
                 }
-                if (program.removeOriginalFiles) {
-                    fs.unlinkSync(filePath);
+                let errorCount = check(filePath);
+                if (errorCount) {
+                    console.warn(`发现 ${errorCount}处 @ts-ignore 错误: ${filePath}`);
+                    errors = true;
                 }
-                fs.writeFileSync(newPath, result);
-            } catch (error) {
-                console.warn(`Failed to convert ${filePath}`);
-                console.warn(error);
-                errors = true;
             }
-            if (!program.keepTemporaryFiles) {
-                if (fs.existsSync(temporaryPath)) {
-                    fs.unlinkSync(temporaryPath);
+        } else {
+            for (const filePath of files) {
+                if (!fs.existsSync(filePath)) {
+                    continue;
+                }
+                console.log(`Transforming ${filePath}...`);
+                const pluginMode = !!program.pluginMode;
+                const extension = getExtension(filePath, pluginMode);
+                const newPath = filePath.replace(/\.jsx?$/, extension);
+                const temporaryPath = filePath + `_js2ts_${+new Date()}${extension}`;
+                try {
+                    fs.copyFileSync(filePath, temporaryPath);
+                    const result = run(temporaryPath, prettierOptions, compilationOptions, pluginMode);
+                    if (program.print) {
+                        console.log('result:\n', result);
+                    }
+                    if (program.removeOriginalFiles) {
+                        fs.unlinkSync(filePath);
+                    }
+                    fs.writeFileSync(newPath, result);
+                } catch (error) {
+                    console.warn(`Failed to convert ${filePath}`);
+                    console.warn(error);
+                    errors = true;
+                }
+                if (!program.keepTemporaryFiles) {
+                    if (fs.existsSync(temporaryPath)) {
+                        fs.unlinkSync(temporaryPath);
+                    }
                 }
             }
         }
