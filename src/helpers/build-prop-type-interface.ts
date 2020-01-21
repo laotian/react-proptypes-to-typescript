@@ -1,4 +1,36 @@
 import * as ts from 'typescript';
+import { SyntaxKind } from 'typescript';
+import * as helpers from './index';
+
+
+function getObjetKeys(objectLiteral: ts.ObjectLiteralExpression): Array<string> {
+    return  objectLiteral.properties.filter(ts.isPropertyAssignment)
+        .filter(node=>{
+            if(!node.initializer) return false;
+            if(node.initializer.kind==SyntaxKind.NullKeyword) return false;
+            if(ts.isIdentifier(node.initializer) && (node.initializer.text=='undefined')){
+                return false;
+            }
+            return true;
+        })
+        .map(node=>node.name)
+        .filter(ts.isIdentifier)
+        .map(node=>node.text);
+}
+
+
+export function getDefaultPropsByClass(classDeclaration:ts.ClassDeclaration):Array<string> {
+    const keys = new Array<string>();
+    classDeclaration.members.filter(ts.isPropertyDeclaration)
+        .filter(node=> helpers.hasStaticModifier(node) && ts.isIdentifier(node.name) && node.name.text==='defaultProps' && node.initializer && ts.isObjectLiteralExpression(node.initializer))
+        .forEach(node=>{
+            const defineKeys = getObjetKeys(node.initializer as ts.ObjectLiteralExpression);
+            defineKeys.forEach(key=>{
+                keys.push(key);
+            });
+        });
+    return keys;
+}
 
 /**
  * Build props interface from propTypes object

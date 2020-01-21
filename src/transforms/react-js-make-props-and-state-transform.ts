@@ -118,6 +118,34 @@ function getNewReactClassDeclaration(
     );
 }
 
+/**
+ * 如果定义了 defaultProps, 并且propTypes对应的key为可选，修复key为必选
+ * before=>
+static propTypes = {
+        productName: PropTypes.string,
+    }
+
+ static defaultProps  = {
+        productName: 'defaultValue',
+    }
+
+ after =>
+ interface TestComponentProps {
+    productName: string;
+}
+
+ * @param typeLiteralNode
+ * @param defaultPropsKeys
+ */
+function fixPropsInterface(typeLiteralNode:ts.TypeLiteralNode, defaultPropsKeys: Array<string>): ts.TypeLiteralNode {
+    typeLiteralNode.members.forEach(member =>{
+        if(member.name && ts.isIdentifier(member.name) && defaultPropsKeys.indexOf(member.name.text)>=0) {
+            member.questionToken = undefined;
+        }
+    });
+    return typeLiteralNode;
+}
+
 function getPropsTypeOfReactComponentClass(
     classDeclaration: ts.ClassDeclaration,
     sourceFile: ts.SourceFile,
@@ -130,13 +158,14 @@ function getPropsTypeOfReactComponentClass(
         );
     });
 
+    const defaultPropsKeys = helpers.getDefaultPropsByClass(classDeclaration);
     if (
         staticPropTypesMember !== undefined &&
         ts.isPropertyDeclaration(staticPropTypesMember) && // check to satisfy type checker
         staticPropTypesMember.initializer &&
         ts.isObjectLiteralExpression(staticPropTypesMember.initializer)
     ) {
-        return helpers.buildInterfaceFromPropTypeObjectLiteral(staticPropTypesMember.initializer);
+        return fixPropsInterface(helpers.buildInterfaceFromPropTypeObjectLiteral(staticPropTypesMember.initializer),defaultPropsKeys);
     }
 
     const staticPropTypesGetterMember = _.find(classDeclaration.members, member => {
@@ -160,7 +189,7 @@ function getPropsTypeOfReactComponentClass(
             returnStatement.expression &&
             ts.isObjectLiteralExpression(returnStatement.expression)
         ) {
-            return helpers.buildInterfaceFromPropTypeObjectLiteral(returnStatement.expression);
+            return  fixPropsInterface(helpers.buildInterfaceFromPropTypeObjectLiteral(returnStatement.expression),defaultPropsKeys);
         }
     }
 
