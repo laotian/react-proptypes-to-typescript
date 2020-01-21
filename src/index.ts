@@ -10,7 +10,7 @@ import { reactRemoveStaticPropTypesMemberTransformFactoryFactory } from './trans
 import { reactStatelessFunctionMakePropsTransformFactoryFactory } from './transforms/react-stateless-function-make-props-transform';
 import { reactRemovePropTypesImportTransformFactoryFactory } from './transforms/react-remove-prop-types-import';
 import { classInstanceVariablesTransformFactoryFactory } from './transforms/class-instance-variables-transform';
-import {pluginTransformFactoryFactory} from './transforms/plugin-transform';
+import {jsDocTransformFactoryFactory} from './transforms/jsdoc-transform';
 
 export {
     reactMovePropTypesToClassTransformFactoryFactory,
@@ -33,6 +33,7 @@ export const allTransforms = [
     reactRemoveStaticPropTypesMemberTransformFactoryFactory,
     reactRemovePropTypesImportTransformFactoryFactory,
     classInstanceVariablesTransformFactoryFactory,
+    jsDocTransformFactoryFactory,
 ];
 
 export type TransformFactoryFactory = (typeChecker: ts.TypeChecker) => ts.TransformerFactory<ts.SourceFile>;
@@ -44,8 +45,7 @@ export type TransformFactoryFactory = (typeChecker: ts.TypeChecker) => ts.Transf
 export function run(
     filePath: string,
     prettierOptions: prettier.Options = {},
-    compilationOptions: CompilationOptions = DEFAULT_COMPILATION_OPTIONS,
-    pluginMode: boolean,
+    compilationOptions: CompilationOptions = DEFAULT_COMPILATION_OPTIONS
 ): string {
-    return compile(filePath, pluginMode ? [pluginTransformFactoryFactory] : allTransforms, prettierOptions, compilationOptions);
+    return compile(filePath, allTransforms, prettierOptions, compilationOptions);
 }
