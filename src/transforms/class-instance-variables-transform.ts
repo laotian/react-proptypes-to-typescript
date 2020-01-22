@@ -37,7 +37,7 @@ export function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.Ty
 }
 
 const referenceTypes =  ["this\\.produceModel\\((\\w+)\\)",   "this\\.produceUIModel\\((\\w+)\\)"];
-
+const blackListProperties = ["listViewType","needsPullDownToRefresh","needsPullUpToLoadMore","refreshingType","_renderFooterView","_listView","pageSize","emotionViewState","ipViewState","UIModel", "navigationBar","isListView"];
 
 function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker) {
     helpers.visitor(sourceFile.statements, statement => {
@@ -60,12 +60,26 @@ function getInstancePropertiesFromClassStatement(
     typeChecker: ts.TypeChecker,
     sourceFile: ts.SourceFile,
 ): Array<ts.PropertyDeclaration> {
+
+    const isReactClass = helpers.isReactComponent(classStatement, typeChecker);
+    if(!isReactClass){
+        return [];
+    }
+
     const propertyDeclarations: Array<ts.PropertyDeclaration> = [];
     const memberTypes = new Map<string,ts.Type>();
 
     const memberNames = new Array<string>();
 
+
+    let constructorStartIndex = -1;
+    let constructorEndIndex = -1;
+
     classStatement.members.forEach(member => {
+        if(ts.isConstructorDeclaration(member)){
+            constructorStartIndex = member.getStart();
+            constructorEndIndex = member.getEnd();
+        }
         if(member.name && ts.isIdentifier(member.name) && member.name.text){
             memberTypes.set(member.name.text,typeChecker.getTypeAtLocation(member));
             memberNames.push(member.name.text);
@@ -76,11 +90,12 @@ function getInstancePropertiesFromClassStatement(
         ts.isBinaryExpression,
     );
 
-    const isReactClass = helpers.isReactComponent(classStatement, typeChecker);
+
 
     expressions.forEach((expression: ts.BinaryExpression) => {
         //  this.onComplete = this._onComplete.bind(this);
         if(expression.operatorToken.kind ==ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(expression.left) && expression.left.expression.kind==ts.SyntaxKind.ThisKeyword ){
+            let isRequired = expression.getStart()>=constructorStartIndex && expression.getEnd()<=constructorEndIndex;
             const propertyName = expression.left.name.text;
             let   type = typeChecker.getTypeAtLocation(expression.right);
             let referenceType = '';
@@ -98,15 +113,13 @@ function getInstancePropertiesFromClassStatement(
                         }
                     }
                 }
-                //
-                // type = typeChecker.getTypeAtLocation(expression.right.expression);
-                // console.log("right type==="+typeChecker.typeToString(type));;
             }
 
             const process = isReactClass
                 ? propertyName.toLowerCase() !== 'state' &&
                   propertyName.toLowerCase() !== 'props' &&
-                  propertyName.toLowerCase() !== 'setstate'
+                  propertyName.toLowerCase() !== 'setstate' &&
+                  !blackListProperties.includes(propertyName)
                 : true;
 
             if (
@@ -115,7 +128,7 @@ function getInstancePropertiesFromClassStatement(
                 !propertyDeclarations.find(p => (p.name as ts.Identifier).text === propertyName)
             ) {
                 const typeString = typeChecker.typeToString(type);
-                let typeNode;
+                let typeNode:ts.TypeNode | undefined = undefined;
                 if(referenceType){
                     typeNode = ts.createTypeReferenceNode(referenceType, []);
                 }else if (typeString === 'ReactNode') {
@@ -131,13 +144,19 @@ function getInstancePropertiesFromClassStatement(
                 } else {
                     typeNode = typeChecker.typeToTypeNode(type);
                 }
-                // console.log(typeNode+">>"+",propertyName:"+propertyName);
+                if(typeNode){
+                    if(typeNode.kind==ts.SyntaxKind.AnyKeyword){
+                        isRequired = true;
+                    }
+                }else{
+                    isRequired = true;
+                }
 
                 const propertyDeclaration = ts.createProperty(
                     [], // decorator
-                    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Private), // modifier
+                    undefined, // modifier
                     propertyName,
-                    undefined,
+                    isRequired ? undefined : ts.createToken(ts.SyntaxKind.QuestionToken),
                     typeNode,
                     undefined,
                 );
