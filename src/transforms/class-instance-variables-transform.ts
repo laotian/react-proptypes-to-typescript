@@ -36,6 +36,9 @@ export function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.Ty
     };
 }
 
+const referenceTypes =  ["this\\.produceModel\\((\\w+)\\)",   "this\\.produceUIModel\\((\\w+)\\)"];
+
+
 function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker) {
     helpers.visitor(sourceFile.statements, statement => {
         if (ts.isClassExpression(statement) || ts.isClassDeclaration(statement)) {
@@ -58,39 +61,48 @@ function getInstancePropertiesFromClassStatement(
     sourceFile: ts.SourceFile,
 ): Array<ts.PropertyDeclaration> {
     const propertyDeclarations: Array<ts.PropertyDeclaration> = [];
-    const memberNames = classStatement.members.map(member => {
-        return member.name ? (member.name as ts.Identifier).text : '';
+    const memberTypes = new Map<string,ts.Type>();
+
+    const memberNames = new Array<string>();
+
+    classStatement.members.forEach(member => {
+        if(member.name && ts.isIdentifier(member.name) && member.name.text){
+            memberTypes.set(member.name.text,typeChecker.getTypeAtLocation(member));
+            memberNames.push(member.name.text);
+        }
     });
-    const expressions = helpers.filter<ts.BinaryExpression | ts.PropertyAccessExpression>(
+    const expressions = helpers.filter<ts.BinaryExpression>(
         classStatement.members,
-        node => {
-            return ts.isBinaryExpression(node) || ts.isPropertyAccessExpression(node);
-        },
+        ts.isBinaryExpression,
     );
 
     const isReactClass = helpers.isReactComponent(classStatement, typeChecker);
 
-    expressions.forEach((expression: ts.Expression) => {
-        let text = '',
-            type;
-        if (ts.isBinaryExpression(expression)) {
-            text = expression.left.getText();
-            type = typeChecker.getTypeAtLocation(expression.right);
-        } else {
-            text = expression.getText();
-            type = typeChecker.getTypeAtLocation(expression);
-        }
-
-        if (text.indexOf('this.') === 0) {
-            const match = text
-                .replace(/\(\w{0,}\)/, '')
-                .replace(/\[.+\]/, '')
-                .replace(/^this\./, '')
-                .match(/\w+/);
-            if (!match) {
-                throw 'fail to analyze propertyName: ' + text;
+    expressions.forEach((expression: ts.BinaryExpression) => {
+        //  this.onComplete = this._onComplete.bind(this);
+        if(expression.operatorToken.kind ==ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(expression.left) && expression.left.expression.kind==ts.SyntaxKind.ThisKeyword ){
+            const propertyName = expression.left.name.text;
+            let   type = typeChecker.getTypeAtLocation(expression.right);
+            let referenceType = '';
+            //this._onComplete.bind(this);
+            if(ts.isCallExpression(expression.right)){
+                const callText = expression.right.getText();
+                let match = callText.match(/^this\.(\w+)\.bind\(this\)/);
+                if(match) {
+                    type = memberTypes.get(match[1])!;
+                }else{
+                    for( let rt of referenceTypes) {
+                        match = callText.match(new RegExp(rt));
+                        if (match) {
+                            referenceType = match[1];
+                        }
+                    }
+                }
+                //
+                // type = typeChecker.getTypeAtLocation(expression.right.expression);
+                // console.log("right type==="+typeChecker.typeToString(type));;
             }
-            const propertyName = match[0];
+
             const process = isReactClass
                 ? propertyName.toLowerCase() !== 'state' &&
                   propertyName.toLowerCase() !== 'props' &&
@@ -104,10 +116,9 @@ function getInstancePropertiesFromClassStatement(
             ) {
                 const typeString = typeChecker.typeToString(type);
                 let typeNode;
-
-                if (text.indexOf('[') >= 0) {
-                    typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
-                } else if (typeString === 'ReactNode') {
+                if(referenceType){
+                    typeNode = ts.createTypeReferenceNode(referenceType, []);
+                }else if (typeString === 'ReactNode') {
                     typeNode = ts.createTypeReferenceNode('React.ReactNode', []);
                 } else if (typeString === 'undefined[]') {
                     typeNode = ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
@@ -120,6 +131,7 @@ function getInstancePropertiesFromClassStatement(
                 } else {
                     typeNode = typeChecker.typeToTypeNode(type);
                 }
+                // console.log(typeNode+">>"+",propertyName:"+propertyName);
 
                 const propertyDeclaration = ts.createProperty(
                     [], // decorator
