@@ -11,6 +11,7 @@ import { reactStatelessFunctionMakePropsTransformFactoryFactory } from './transf
 import { reactRemovePropTypesImportTransformFactoryFactory } from './transforms/react-remove-prop-types-import';
 import { classInstanceVariablesTransformFactoryFactory } from './transforms/class-instance-variables-transform';
 import {jsDocTransformFactoryFactory} from './transforms/jsdoc-transform';
+import {importAbsolutePathTransformFactoryFactory} from './transforms/import-absolute-path-transform';
 
 export {
     reactMovePropTypesToClassTransformFactoryFactory,
@@ -34,6 +35,7 @@ export const allTransforms = [
     reactRemovePropTypesImportTransformFactoryFactory,
     classInstanceVariablesTransformFactoryFactory,
     jsDocTransformFactoryFactory,
+    importAbsolutePathTransformFactoryFactory,
 ];
 
 export type TransformFactoryFactory = (typeChecker: ts.TypeChecker) => ts.TransformerFactory<ts.SourceFile>;

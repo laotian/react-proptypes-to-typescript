@@ -154,7 +154,7 @@ function getInstancePropertiesFromClassStatement(
 
                 const propertyDeclaration = ts.createProperty(
                     [], // decorator
-                    undefined, // modifier
+                    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Private), // modifier
                     propertyName,
                     isRequired ? undefined : ts.createToken(ts.SyntaxKind.QuestionToken),
                     typeNode,

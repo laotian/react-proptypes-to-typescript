@@ -64,6 +64,7 @@ program
             trailingComma: program.trailingComma,
             useTabs: !!program.useTabs,
         };
+
         const compilationOptions: CompilationOptions = {
             ignorePrettierErrors: !!program.ignorePrettierErrors,
         };
