@@ -3,6 +3,40 @@ import * as _ from 'lodash';
 
 export * from './build-prop-type-interface';
 
+
+export function getComponentExtend(
+    classDeclaration: ts.ClassDeclaration | ts.ClassExpression,
+    typeChecker: ts.TypeChecker,
+): string | undefined {
+    // Only classes that extend React.Component
+    if (!classDeclaration.heritageClauses) {
+        return undefined;
+    }
+    if (classDeclaration.heritageClauses.length !== 1) {
+        return undefined;
+    }
+
+    const firstHeritageClauses = classDeclaration.heritageClauses[0];
+
+    if (firstHeritageClauses.token !== ts.SyntaxKind.ExtendsKeyword) {
+        return undefined;
+    }
+
+    const expressionWithTypeArguments = firstHeritageClauses.types[0];
+
+    if (!expressionWithTypeArguments) {
+        return undefined;
+    }
+
+    // Try type checker and fallback to node text
+    const type = typeChecker.getTypeAtLocation(expressionWithTypeArguments);
+    let typeSymbol = type && type.symbol && type.symbol.name;
+    if (!typeSymbol) {
+        typeSymbol = expressionWithTypeArguments.expression.getText();
+    }
+    return  typeSymbol;
+}
+
 /**
  * If a class declaration a react class?
  * @param classDeclaration
@@ -13,33 +47,13 @@ export function isReactComponent(
     typeChecker: ts.TypeChecker,
 ): boolean {
     // Only classes that extend React.Component
-    if (!classDeclaration.heritageClauses) {
-        return false;
-    }
-    if (classDeclaration.heritageClauses.length !== 1) {
-        return false;
-    }
-
-    const firstHeritageClauses = classDeclaration.heritageClauses[0];
-
-    if (firstHeritageClauses.token !== ts.SyntaxKind.ExtendsKeyword) {
+   const typeSymbol = getComponentExtend(classDeclaration, typeChecker);
+    if(!typeSymbol){
         return false;
     }
 
-    const expressionWithTypeArguments = firstHeritageClauses.types[0];
-
-    if (!expressionWithTypeArguments) {
-        return false;
-    }
-
-    // Try type checker and fallback to node text
-    const type = typeChecker.getTypeAtLocation(expressionWithTypeArguments);
-    let typeSymbol = type && type.symbol && type.symbol.name;
-    if (!typeSymbol) {
-        typeSymbol = expressionWithTypeArguments.expression.getText();
-    }
-
-    if (!/React\.Component|Component|JDBBaseContainer/.test(typeSymbol)) {
+    // todo 添加可以通过配置的方式
+    if (!/React\.Component|Component|\w+BaseContainer|\w+BaseListContainer/.test(typeSymbol)) {
         return false;
     }
 

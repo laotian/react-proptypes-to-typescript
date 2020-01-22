@@ -27,14 +27,14 @@ export function importAbsolutePathTransformFactoryFactory(typeChecker: ts.TypeCh
         const importDeclarations = statements.filter(statement=>{
             return  ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier) && statement.moduleSpecifier.text.startsWith("/js/");
         }).forEach(statement =>{
-                const importDeclaration = statement as ts.ImportDeclaration;
-                const relativePath = (importDeclaration.moduleSpecifier as ts.StringLiteral).text.substring(1);
-                const newImportDeclaration = ts.updateImportDeclaration(importDeclaration,
-                    importDeclaration.decorators,
-                    importDeclaration.modifiers,
-                    importDeclaration.importClause,
-                    ts.createStringLiteral(relativePath));
-                statements = ts.createNodeArray(helpers.replaceItem(statements, statement, newImportDeclaration));
+            const importDeclaration = statement as ts.ImportDeclaration;
+            const relativePath = (importDeclaration.moduleSpecifier as ts.StringLiteral).text.substring(1);
+            const newImportDeclaration = ts.updateImportDeclaration(importDeclaration,
+                importDeclaration.decorators,
+                importDeclaration.modifiers,
+                importDeclaration.importClause,
+                ts.createStringLiteral(relativePath));
+            statements = ts.createNodeArray(helpers.replaceItem(statements, statement, newImportDeclaration));
         });
 
         return ts.updateSourceFileNode(sourceFile, statements);

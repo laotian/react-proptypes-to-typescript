@@ -50,17 +50,22 @@ function visitReactClassDeclaration(
     const shouldMakeStateTypeDeclaration = !isStateMemberEmpty(states);
     const propTypeName = `${className}Props`;
     const stateTypeName = `${className}State`;
-    const interfaceHeritageClause = createInterfaceHeritageClause();
+
+    const extendFrom = helpers.getComponentExtend(classDeclaration, typeChecker)!;
+    const customExtend = !["React.Component","Component"].includes(extendFrom);
+
+    let interfaceHeritageClause = customExtend ? [createInterfaceHeritageClause()] : undefined;
     const propsInterfaceDeclaration = ts.createInterfaceDeclaration(
         [],
         [],
         propTypeName,
         [],
-        [],
+        interfaceHeritageClause,
         interfaceMembers,
     );
 
-    const stateTypeDeclaration = ts.createTypeAliasDeclaration([], [], stateTypeName, [], states);
+    const stateTypeDeclaration =    ts.createTypeAliasDeclaration([], [], stateTypeName, [],
+        customExtend ? ts.createIntersectionTypeNode([states,ts.createTypeReferenceNode('States',[])]) :states);
     const propTypeRef = ts.createTypeReferenceNode(propTypeName, []);
     const stateTypeRef = ts.createTypeReferenceNode(stateTypeName, []);
 
@@ -77,6 +82,46 @@ function visitReactClassDeclaration(
     let statements = helpers.insertBefore(sourceFile.statements, classDeclaration, allTypeDeclarations);
 
     statements = helpers.replaceItem(statements, classDeclaration, newClassDeclaration);
+
+
+    if(customExtend){
+        const importDeclarations = statements.filter(statement=>{
+            return  ts.isImportDeclaration(statement) && statement.importClause && statement.importClause.name && ts.isIdentifier(statement.importClause.name) && statement.importClause.name.text===extendFrom;
+        }).forEach(statement =>{
+            const importDeclaration = statement as ts.ImportDeclaration;
+            if(importDeclaration.importClause) {
+
+                let added =   [
+                    ts.createImportSpecifier(undefined, ts.createIdentifier('Props')),
+                    ts.createImportSpecifier(undefined, ts.createIdentifier('States'))
+                ];
+
+               if(importDeclaration.importClause.namedBindings &&  ts.isNamedImports(importDeclaration.importClause.namedBindings)){
+                   // importDeclaration.importClause.namedBindings.element
+                   importDeclaration.importClause.namedBindings.elements.forEach(value => {
+                       added.push(value);
+                   })
+               }
+                const importClause = ts.updateImportClause(
+                    importDeclaration.importClause,
+                    importDeclaration.importClause.name,
+                    ts.createNamedImports( added)
+                );
+
+
+                const newImportDeclaration = ts.updateImportDeclaration(importDeclaration,
+                    importDeclaration.decorators,
+                    importDeclaration.modifiers,
+                    importClause,
+                    importDeclaration.moduleSpecifier);
+                statements = helpers.replaceItem(statements, statement, newImportDeclaration);
+            }
+        });
+
+
+    }
+
+
     return ts.updateSourceFileNode(sourceFile, statements);
 }
 
@@ -302,9 +347,9 @@ function isStateMemberEmpty(stateType: ts.TypeNode): boolean {
  * interface extends React.HTMLAttributes<Element>
  */
 function createInterfaceHeritageClause() {
-    const expression = ts.createPropertyAccess(ts.createIdentifier('React'), 'HTMLAttributes');
-    const typeReference = ts.createTypeReferenceNode('Element', []);
-    const expressionWithTypeArguments = ts.createExpressionWithTypeArguments([typeReference], expression);
+    const expression = ts.createIdentifier('Props');
+    // const typeReference = ts.createTypeReferenceNode('Element', []);
+    const expressionWithTypeArguments = ts.createExpressionWithTypeArguments(undefined, expression);
     return ts.createHeritageClause(ts.SyntaxKind.ExtendsKeyword, [expressionWithTypeArguments]);
 }
 
