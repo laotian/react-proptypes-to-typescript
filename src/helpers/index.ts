@@ -3,7 +3,6 @@ import * as _ from 'lodash';
 
 export * from './build-prop-type-interface';
 
-
 export function getComponentExtend(
     classDeclaration: ts.ClassDeclaration | ts.ClassExpression,
     typeChecker: ts.TypeChecker,
@@ -24,17 +23,10 @@ export function getComponentExtend(
 
     const expressionWithTypeArguments = firstHeritageClauses.types[0];
 
-    if (!expressionWithTypeArguments) {
-        return undefined;
+    if (expressionWithTypeArguments && ts.isIdentifier(expressionWithTypeArguments.expression)) {
+        return expressionWithTypeArguments.expression.text;
     }
-
-    // Try type checker and fallback to node text
-    const type = typeChecker.getTypeAtLocation(expressionWithTypeArguments);
-    let typeSymbol = type && type.symbol && type.symbol.name;
-    if (!typeSymbol) {
-        typeSymbol = expressionWithTypeArguments.expression.getText();
-    }
-    return  typeSymbol;
+    return undefined;
 }
 
 /**
@@ -47,8 +39,8 @@ export function isReactComponent(
     typeChecker: ts.TypeChecker,
 ): boolean {
     // Only classes that extend React.Component
-   const typeSymbol = getComponentExtend(classDeclaration, typeChecker);
-    if(!typeSymbol){
+    const typeSymbol = getComponentExtend(classDeclaration, typeChecker);
+    if (!typeSymbol) {
         return false;
     }
 

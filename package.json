@@ -8,15 +8,15 @@
         "test": "jest",
         "coverage": "jest --coverage",
         "posttest": "npm run lint",
-        "prelint": "npm run clean",
         "lint": "tslint --project tsconfig.json --format codeFrame --exclude test/**/*.tsx",
         "prepublish": "npm run build",
         "clean": "rm -rf dist",
         "clean:win": "rmdir /q /s dist",
-        "prebuild": "npm run clean",
         "build": "tsc --pretty",
         "precommit": "lint-staged",
-        "prettier": "prettier --write *.{js,json,css,md,ts,tsx}"
+        "prettier": "prettier --write *.{js,json,css,md,ts,tsx}",
+        "preassets": "npm run build",
+        "assets": "node dist/cli.js assets/*.js"
     },
     "jest": {
         "transform": {
