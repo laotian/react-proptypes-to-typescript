@@ -46,13 +46,15 @@ function visitReactClassDeclaration(
         p.name ? (p.name as ts.Identifier).text : '',
     );
     const states = getStatesOfReactComponentClass(classDeclaration, typeChecker);
-    const shouldMakePropTypeDeclaration = interfaceMembers.length > 0;
-    const shouldMakeStateTypeDeclaration = !isStateMemberEmpty(states);
+    let shouldMakePropTypeDeclaration = interfaceMembers.length > 0;
+    let shouldMakeStateTypeDeclaration = !isStateMemberEmpty(states);
     const propTypeName = `${className}Props`;
     const stateTypeName = `${className}State`;
 
     const extendFrom = helpers.getComponentExtend(classDeclaration, typeChecker)!;
     const customExtend = !["React.Component","Component"].includes(extendFrom);
+    shouldMakePropTypeDeclaration = shouldMakePropTypeDeclaration || customExtend;
+    shouldMakeStateTypeDeclaration = shouldMakeStateTypeDeclaration || customExtend;
 
     let interfaceHeritageClause = customExtend ? [createInterfaceHeritageClause()] : undefined;
     const propsInterfaceDeclaration = ts.createInterfaceDeclaration(
@@ -64,8 +66,18 @@ function visitReactClassDeclaration(
         interfaceMembers,
     );
 
-    const stateTypeDeclaration =    ts.createTypeAliasDeclaration([], [], stateTypeName, [],
-        customExtend ? ts.createIntersectionTypeNode([states,ts.createTypeReferenceNode('States',[])]) :states);
+    let statesHeritageClause = customExtend ?  [createStatesHeritageClause()] : undefined;
+    const statesInterfaceDeclaration = ts.createInterfaceDeclaration(
+        [],
+        [],
+        stateTypeName,
+        [],
+        statesHeritageClause,
+        (states as ts.TypeLiteralNode).members,
+    );
+
+
+
     const propTypeRef = ts.createTypeReferenceNode(propTypeName, []);
     const stateTypeRef = ts.createTypeReferenceNode(stateTypeName, []);
 
@@ -77,12 +89,10 @@ function visitReactClassDeclaration(
 
     const allTypeDeclarations = [];
     if (shouldMakePropTypeDeclaration) allTypeDeclarations.push(propsInterfaceDeclaration);
-    if (shouldMakeStateTypeDeclaration) allTypeDeclarations.push(stateTypeDeclaration);
+    if (shouldMakeStateTypeDeclaration) allTypeDeclarations.push(statesInterfaceDeclaration);
 
     let statements = helpers.insertBefore(sourceFile.statements, classDeclaration, allTypeDeclarations);
-
     statements = helpers.replaceItem(statements, classDeclaration, newClassDeclaration);
-
 
     if(customExtend){
         const importDeclarations = statements.filter(statement=>{
@@ -117,11 +127,7 @@ function visitReactClassDeclaration(
                 statements = helpers.replaceItem(statements, statement, newImportDeclaration);
             }
         });
-
-
     }
-
-
     return ts.updateSourceFileNode(sourceFile, statements);
 }
 
@@ -348,6 +354,13 @@ function isStateMemberEmpty(stateType: ts.TypeNode): boolean {
  */
 function createInterfaceHeritageClause() {
     const expression = ts.createIdentifier('Props');
+    // const typeReference = ts.createTypeReferenceNode('Element', []);
+    const expressionWithTypeArguments = ts.createExpressionWithTypeArguments(undefined, expression);
+    return ts.createHeritageClause(ts.SyntaxKind.ExtendsKeyword, [expressionWithTypeArguments]);
+}
+
+function createStatesHeritageClause() {
+    const expression = ts.createIdentifier('States');
     // const typeReference = ts.createTypeReferenceNode('Element', []);
     const expressionWithTypeArguments = ts.createExpressionWithTypeArguments(undefined, expression);
     return ts.createHeritageClause(ts.SyntaxKind.ExtendsKeyword, [expressionWithTypeArguments]);
