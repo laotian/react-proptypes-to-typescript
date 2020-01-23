@@ -1,6 +1,7 @@
 import * as ts from 'typescript';
 import * as path from 'path';
 
+export default function check(file: string): string {
      const   errors: Map<string,number> = new Map<string, number>();
      errors.set("@ts-ignore",0);
      errors.set("module.exports",0);

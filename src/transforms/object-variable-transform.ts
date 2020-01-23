@@ -14,8 +14,12 @@ export function objectVariableTransformFactoryFactory(
 
             function visitEach(node: ts.Node) {
                 if(ts.isVariableDeclaration(node)){
-                    if(node.initializer && ts.isObjectLiteralExpression(node.initializer) && node.initializer.properties.length == 0 && !node.type){
-                        node.type = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+                    if(node.initializer && !node.type){
+                        if(ts.isObjectLiteralExpression(node.initializer) && node.initializer.properties.length == 0) {
+                            node.type = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+                        }else if(ts.isArrayLiteralExpression(node.initializer) && node.initializer.elements.length==0){
+                            node.type = ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
+                        }
                     }
                 }
                 ts.forEachChild(node,visitEach);
