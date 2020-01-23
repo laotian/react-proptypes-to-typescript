@@ -14,7 +14,6 @@ export function objectVariableTransformFactoryFactory(
 
             function visitEach(node: ts.Node) {
                 if(ts.isVariableDeclaration(node)){
-                    console.log("yes, variable!");
                     if(node.initializer && ts.isObjectLiteralExpression(node.initializer) && node.initializer.properties.length == 0 && !node.type){
                         node.type = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
                     }
