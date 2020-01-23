@@ -8,6 +8,7 @@ import * as prettier from 'prettier';
 import { run } from '.';
 import { CompilationOptions } from './compiler';
 import check from './check';
+import { execSync } from 'child_process';
 
 function resolveGlobs(globPatterns: string[]): string[] {
     const files: string[] = [];
@@ -49,6 +50,7 @@ program
     .option('--keep-temporary-files', 'Keep temporary files', false)
     .option('--print', 'print output to console', false)
     .option('--check', '检查手动修是否存在问题', false)
+    .option('--rename','把js改名为ts或tsx',false)
     .usage('[options] <filename or glob>')
     .command('* [glob/filename...]')
     .action((globPatterns: string[]) => {
@@ -79,12 +81,27 @@ program
                 if (!fs.existsSync(filePath)) {
                     continue;
                 }
-                let errorCount = check(filePath);
-                if (errorCount) {
-                    console.warn(`发现 ${errorCount}处 @ts-ignore 错误: ${filePath}`);
+                let errorMessage = check(filePath);
+                if (errorMessage) {
+                    console.error(`error: ${errorMessage}, file: ${filePath}`);
                     errors = true;
                 }
             }
+        } else if(program.rename){
+            for (const filePath of files) {
+                if (!fs.existsSync(filePath)) {
+                    continue;
+                }
+                const extension = getExtension(filePath);
+                const newPath = filePath.replace(/\.jsx?$/, extension);
+                if(!fs.existsSync(newPath)) {
+                    execSync(`git mv ${path.basename(filePath)} ${path.basename(newPath)}`,{
+                        cwd: path.dirname(newPath),
+                        encoding: 'utf8'
+                    });
+                }
+            }
+            console.log("git rename finished, please commit to git repository")
         } else {
             for (const filePath of files) {
                 if (!fs.existsSync(filePath)) {
