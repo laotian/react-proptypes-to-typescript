@@ -45,7 +45,7 @@ export function isReactComponent(
     }
 
     // todo 添加可以通过配置的方式
-    if (!/React\.Component|Component|\w+BaseContainer|\w+BaseListContainer/.test(typeSymbol)) {
+    if (!/React\.Component|Component|\w+BaseComponent|\w+BaseContainer|\w+BaseListContainer/.test(typeSymbol)) {
         return false;
     }
 
