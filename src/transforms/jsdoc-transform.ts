@@ -1,6 +1,16 @@
 import * as ts from 'typescript';
 import {VariableStatement} from 'typescript';
 
+// todo 支持配置黑名单类型或传入检验function
+const blackListTypes = ["XML","xml"];
+
+function isValidType(typeNode?: ts.TypeNode) {
+    if(typeNode && !blackListTypes.includes(typeNode.getText())){
+        return true;
+    }
+    return false;
+}
+
 /**
  * 处理方法定义中的JSDOC 为 typescript 类型定义，包括参数与返回值
  */
@@ -15,12 +25,12 @@ export function jsDocTransformFactoryFactory(
             function visitEach(node: ts.Node) {
                 if(ts.isMethodDeclaration(node)){
                     const returnType = ts.getJSDocReturnType(node);
-                    if(!node.type && returnType) {
+                    if(!node.type && isValidType(returnType)) {
                         node.type = returnType;
                     }
                     node.parameters.forEach(parameter =>{
                         const parameterType =  ts.getJSDocType(parameter);
-                        if(!parameter.type && parameterType) {
+                        if(!parameter.type && isValidType(parameterType)) {
                             parameter.type = parameterType;
                         }
                     })
