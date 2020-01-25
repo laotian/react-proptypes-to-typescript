@@ -1,6 +1,7 @@
 import * as ts from 'typescript';
 import { statSync } from 'fs';
 import * as helpers from '../helpers';
+import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
@@ -13,7 +14,7 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  * After
  * import JDBMessageCenter from 'js/JDBRNKit/Utils/JDBMessageCenter';
  */
-export function importAbsolutePathTransformFactoryFactory(typeChecker: ts.TypeChecker): Factory {
+export function importAbsolutePathTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function importAbsolutePathTransformFactory(context: ts.TransformationContext) {
         return function importAbsolutePathTransform(sourceFile: ts.SourceFile) {
             const visited = visitSourceFile(sourceFile, typeChecker);

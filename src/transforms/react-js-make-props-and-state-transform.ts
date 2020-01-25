@@ -1,6 +1,7 @@
 import * as ts from 'typescript';
 import * as _ from 'lodash';
 import * as helpers from '../helpers';
+import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
@@ -9,10 +10,10 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  * props and state generic types
  * This transform will remove React component static "propTypes" member during transform
  */
-export function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: ts.TypeChecker): Factory {
+export function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactJSMakePropsAndStateInterfaceTransformFactory(context: ts.TransformationContext) {
         return function reactJSMakePropsAndStateInterfaceTransform(sourceFile: ts.SourceFile) {
-            const visited = visitSourceFile(sourceFile, typeChecker);
+            const visited = visitSourceFile(sourceFile, typeChecker, compilationOptions);
             ts.addEmitHelpers(visited, context.readEmitHelpers());
 
             return visited;
@@ -20,10 +21,10 @@ export function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChe
     };
 }
 
-function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker) {
+function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) {
     let newSourceFile = sourceFile;
     for (const statement of sourceFile.statements) {
-        if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker)) {
+        if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker, compilationOptions)) {
             newSourceFile = visitReactClassDeclaration(statement, newSourceFile, typeChecker);
         }
     }

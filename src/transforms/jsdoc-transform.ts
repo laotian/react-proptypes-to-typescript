@@ -1,5 +1,6 @@
 import * as ts from 'typescript';
 import {VariableStatement} from 'typescript';
+import { CompilationOptions } from '../compiler';
 
 // todo 支持配置黑名单类型或传入检验function
 const blackListTypes = ["XML","xml"];
@@ -16,6 +17,7 @@ function isValidType(typeNode?: ts.TypeNode) {
  */
 export function jsDocTransformFactoryFactory(
     typeChecker: ts.TypeChecker,
+    compilationOptions: CompilationOptions
 ): ts.TransformerFactory<ts.SourceFile> {
     return function jsDocTransformFactory(context: ts.TransformationContext) {
         return function jsDocTransform(sourceFile: ts.SourceFile) {

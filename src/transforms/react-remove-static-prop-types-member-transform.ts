@@ -1,6 +1,7 @@
 import * as ts from 'typescript';
 
 import * as helpers from '../helpers';
+import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
@@ -18,7 +19,7 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  * After:
  * class SomeComponent extends React.Component<{foo: number;}, {bar: string;}> {}
  */
-export function reactRemoveStaticPropTypesMemberTransformFactoryFactory(typeChecker: ts.TypeChecker): Factory {
+export function reactRemoveStaticPropTypesMemberTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactRemoveStaticPropTypesMemberTransformFactory(context: ts.TransformationContext) {
         return function reactRemoveStaticPropTypesMemberTransform(sourceFile: ts.SourceFile) {
             const visited = ts.visitEachChild(sourceFile, visitor, context);
@@ -26,7 +27,7 @@ export function reactRemoveStaticPropTypesMemberTransformFactoryFactory(typeChec
             return visited;
 
             function visitor(node: ts.Node) {
-                if (ts.isClassDeclaration(node) && helpers.isReactComponent(node, typeChecker)) {
+                if (ts.isClassDeclaration(node) && helpers.isReactComponent(node, typeChecker, compilationOptions)) {
                     return ts.updateClassDeclaration(
                         node,
                         node.decorators,

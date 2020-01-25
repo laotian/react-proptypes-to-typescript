@@ -1,6 +1,4 @@
 import * as ts from 'typescript';
-import * as prettier from 'prettier';
-
 import { compile, CompilationOptions, DEFAULT_COMPILATION_OPTIONS } from './compiler';
 import { reactJSMakePropsAndStateInterfaceTransformFactoryFactory } from './transforms/react-js-make-props-and-state-transform';
 import { reactRemovePropTypesAssignmentTransformFactoryFactory } from './transforms/react-remove-prop-types-assignment-transform';
@@ -40,7 +38,7 @@ export const allTransforms = [
     objectVariableTransformFactoryFactory,
 ];
 
-export type TransformFactoryFactory = (typeChecker: ts.TypeChecker) => ts.TransformerFactory<ts.SourceFile>;
+export type TransformFactoryFactory = (typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) => ts.TransformerFactory<ts.SourceFile>;
 
 /**
  * Run React JavaScript to TypeScript transform for file at `filePath`
@@ -48,8 +46,7 @@ export type TransformFactoryFactory = (typeChecker: ts.TypeChecker) => ts.Transf
  */
 export function run(
     filePath: string,
-    prettierOptions: prettier.Options = {},
     compilationOptions: CompilationOptions = DEFAULT_COMPILATION_OPTIONS
 ): string {
-    return compile(filePath, allTransforms, prettierOptions, compilationOptions);
+    return compile(filePath, allTransforms, compilationOptions);
 }

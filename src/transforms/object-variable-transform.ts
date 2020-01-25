@@ -1,11 +1,13 @@
 import * as ts from 'typescript';
 import {VariableStatement} from 'typescript';
+import { CompilationOptions } from '../compiler';
 
 /**
  * const abc = {}; transform to: const abc: any = {};
  */
 export function objectVariableTransformFactoryFactory(
     typeChecker: ts.TypeChecker,
+    compilationOptions: CompilationOptions
 ): ts.TransformerFactory<ts.SourceFile> {
     return function objectVariableTransformFactory(context: ts.TransformationContext) {
         return function objectVariableTransform(sourceFile: ts.SourceFile) {

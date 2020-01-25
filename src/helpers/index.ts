@@ -1,5 +1,6 @@
 import * as ts from 'typescript';
 import * as _ from 'lodash';
+import { CompilationOptions } from '../compiler';
 
 export * from './build-prop-type-interface';
 
@@ -37,6 +38,7 @@ export function getComponentExtend(
 export function isReactComponent(
     classDeclaration: ts.ClassDeclaration | ts.ClassExpression,
     typeChecker: ts.TypeChecker,
+    compilationOptions: CompilationOptions
 ): boolean {
     // Only classes that extend React.Component
     const typeSymbol = getComponentExtend(classDeclaration, typeChecker);
@@ -44,12 +46,15 @@ export function isReactComponent(
         return false;
     }
 
-    // todo 添加可以通过配置的方式
-    if (!/React\.Component|Component|\w+BaseComponent|\w+BaseContainer|\w+BaseListContainer/.test(typeSymbol)) {
-        return false;
+    if (/React\.Component|Component/.test(typeSymbol)) {
+        return true;
     }
 
-    return true;
+    if(compilationOptions.react){
+        return compilationOptions.react.reactClassValidator(typeSymbol);
+    }
+
+    return false;
 }
 
 /**

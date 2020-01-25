@@ -2,6 +2,7 @@ import * as ts from 'typescript';
 import * as _ from 'lodash';
 
 import * as helpers from '../helpers';
+import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
@@ -17,7 +18,7 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  * After:
  * import React from 'react'
  */
-export function reactRemovePropTypesImportTransformFactoryFactory(typeChecker: ts.TypeChecker): Factory {
+export function reactRemovePropTypesImportTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactRemovePropTypesImportTransformFactory(context: ts.TransformationContext) {
         return function reactRemovePropTypesImportTransform(sourceFile: ts.SourceFile) {
             const visited = ts.updateSourceFileNode(

@@ -2,6 +2,7 @@ import * as ts from 'typescript';
 import * as _ from 'lodash';
 
 import * as helpers from '../helpers';
+import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
@@ -33,7 +34,7 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  *   message: React.PropTypes.string,
  * }
  */
-export function reactStatelessFunctionMakePropsTransformFactoryFactory(typeChecker: ts.TypeChecker): Factory {
+export function reactStatelessFunctionMakePropsTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactStatelessFunctionMakePropsTransformFactory(context: ts.TransformationContext) {
         return function reactStatelessFunctionMakePropsTransform(sourceFile: ts.SourceFile) {
             const visited = visitSourceFile(sourceFile, typeChecker);

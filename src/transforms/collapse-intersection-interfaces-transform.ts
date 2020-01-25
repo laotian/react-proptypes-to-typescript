@@ -2,6 +2,7 @@ import * as ts from 'typescript';
 import * as _ from 'lodash';
 
 import * as helpers from '../helpers';
+import { CompilationOptions } from '../compiler';
 
 /**
  * Collapse unnecessary intersections between type literals
@@ -15,6 +16,7 @@ import * as helpers from '../helpers';
  */
 export function collapseIntersectionInterfacesTransformFactoryFactory(
     typeChecker: ts.TypeChecker,
+    compilationOptions: CompilationOptions
 ): ts.TransformerFactory<ts.SourceFile> {
     return function collapseIntersectionInterfacesTransformFactory(context: ts.TransformationContext) {
         return function collapseIntersectionInterfacesTransform(sourceFile: ts.SourceFile) {

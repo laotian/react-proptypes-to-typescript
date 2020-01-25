@@ -3,10 +3,8 @@ import * as program from 'commander';
 import * as glob from 'glob';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as prettier from 'prettier';
-
 import { run } from '.';
-import { CompilationOptions } from './compiler';
+import { CompilationOptions, DEFAULT_COMPILATION_OPTIONS } from './compiler';
 import check from './check';
 import { execSync } from 'child_process';
 
@@ -35,41 +33,38 @@ function resolveGlobs(globPatterns: string[]): string[] {
 
 program
     .version('1.0.0')
-    .option('--arrow-parens <avoid|always>', 'Include parentheses around a sole arrow function parameter.', 'avoid')
-    .option('--no-bracket-spacing', 'Do not print spaces between brackets.', false)
-    .option('--jsx-bracket-same-line', 'Put > on the last line instead of at a new line.', false)
-    .option('--print-width <int>', 'The line length where Prettier will try wrap.', 80)
-    .option('--prose-wrap <always|never|preserve> How to wrap prose. (markdown)', 'preserve')
-    .option('--no-semi', 'Do not print semicolons, except at the beginning of lines which may need them', false)
-    .option('--single-quote', 'Use single quotes instead of double quotes.', false)
-    .option('--tab-width <int>', 'Number of spaces per indentation level.', 2)
-    .option('--trailing-comma <none|es5|all>', 'Print trailing commas wherever possible when multi-line.', 'none')
-    .option('--use-tabs', 'Indent with tabs instead of spaces.', false)
-    .option('--ignore-prettier-errors', 'Ignore (but warn about) errors in Prettier', false)
     .option('--remove-original-files', 'remove original files', false)
     .option('--keep-temporary-files', 'Keep temporary files', false)
     .option('--print', 'print output to console', false)
-    .option('--check', '检查手动修是否存在问题', false)
-    .option('--rename','把js改名为ts或tsx',false)
+    .option('--check', 'check @ts-ignore error and module.exports error', false)
+    .option('--rename','rename .js file extension name to .ts or .tsx',false)
+    .option('--compile-config <string>','set compiler config file','')
     .usage('[options] <filename or glob>')
     .command('* [glob/filename...]')
     .action((globPatterns: string[]) => {
-        const prettierOptions: prettier.Options = {
-            arrowParens: program.arrowParens,
-            bracketSpacing: !program.noBracketSpacing,
-            jsxBracketSameLine: !!program.jsxBracketSameLine,
-            printWidth: parseInt(program.printWidth, 10),
-            proseWrap: program.proseWrap,
-            semi: !program.noSemi,
-            singleQuote: !!program.singleQuote,
-            tabWidth: parseInt(program.tabWidth, 10),
-            trailingComma: program.trailingComma,
-            useTabs: !!program.useTabs,
-        };
 
-        const compilationOptions: CompilationOptions = {
-            ignorePrettierErrors: !!program.ignorePrettierErrors,
-        };
+        let compilationOptions: CompilationOptions = DEFAULT_COMPILATION_OPTIONS;
+        const configFile = program.compileConfig ? path.resolve(program.compileConfig) : "";
+        if(configFile && fs.existsSync(configFile)){
+            compilationOptions = require(configFile);
+            console.log(JSON.stringify(compilationOptions));
+            if(!compilationOptions.react){
+                compilationOptions.react = DEFAULT_COMPILATION_OPTIONS.react;
+            }
+            if(!compilationOptions.classProperty){
+                compilationOptions.classProperty = DEFAULT_COMPILATION_OPTIONS.classProperty;
+            }
+            if(!compilationOptions.react!.reactClassValidator){
+                compilationOptions.react!.reactClassValidator = DEFAULT_COMPILATION_OPTIONS.react!.reactClassValidator;
+            }
+            if(!compilationOptions.classProperty!.propertyNameValidator){
+                compilationOptions.classProperty!.propertyNameValidator = DEFAULT_COMPILATION_OPTIONS.classProperty!.propertyNameValidator;
+            }
+            if(!compilationOptions.classProperty!.customReferenceType){
+                compilationOptions.classProperty!.customReferenceType = DEFAULT_COMPILATION_OPTIONS.classProperty!.customReferenceType;
+            }
+        }
+
         const files = resolveGlobs(globPatterns);
         if (!files.length) {
             throw new Error('Nothing to do. You must provide file names or glob patterns to transform.');
@@ -113,7 +108,7 @@ program
                 const temporaryPath = filePath + `_js2ts_${+new Date()}${extension}`;
                 try {
                     fs.copyFileSync(filePath, temporaryPath);
-                    const result = run(temporaryPath, prettierOptions, compilationOptions);
+                    const result = run(temporaryPath, compilationOptions);
                     if (program.print) {
                         console.log('result:\n', result);
                     }

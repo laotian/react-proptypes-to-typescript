@@ -1,10 +1,10 @@
 import * as ts from 'typescript';
-import * as _ from 'lodash';
 import * as helpers from '../helpers';
-import {Token} from 'typescript';
-import {SyntaxKind} from 'typescript';
+import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
+
+let compilationOptions:CompilationOptions;
 
 /**
  * declare class variables
@@ -25,7 +25,8 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  *    }
  * }
  */
-export function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.TypeChecker): Factory {
+export function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.TypeChecker, _compilationOptions: CompilationOptions): Factory {
+    compilationOptions = _compilationOptions;
     return function classInstanceVariablesTransformFactory(context: ts.TransformationContext) {
         return function classInstanceVariablesTransform(sourceFile: ts.SourceFile) {
             const visited = visitSourceFile(sourceFile, typeChecker);
@@ -35,9 +36,6 @@ export function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.Ty
         };
     };
 }
-
-const referenceTypes =  ["this\\.produceModel\\((\\w+)\\)",   "this\\.produceUIModel\\((\\w+)\\)"];
-const blackListProperties = ["listViewType","needsPullDownToRefresh","needsPullUpToLoadMore","refreshingType","_renderFooterView","_listView","pageSize","emotionViewState","ipViewState","UIModel", "navigationBar","isListView"];
 
 function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker) {
     helpers.visitor(sourceFile.statements, statement => {
@@ -61,10 +59,11 @@ function getInstancePropertiesFromClassStatement(
     sourceFile: ts.SourceFile,
 ): Array<ts.PropertyDeclaration> {
 
-    const isReactClass = helpers.isReactComponent(classStatement, typeChecker);
-    if(!isReactClass){
-        return [];
-    }
+    const className = helpers.getComponentExtend(classStatement, typeChecker);
+    const isReactClass = helpers.isReactComponent(classStatement, typeChecker, compilationOptions);
+    // if(!isReactClass){
+    //     return [];
+    // }
 
     const propertyDeclarations: Array<ts.PropertyDeclaration> = [];
     const memberTypes = new Map<string,ts.Type>();
@@ -90,8 +89,6 @@ function getInstancePropertiesFromClassStatement(
         ts.isBinaryExpression,
     );
 
-
-
     expressions.forEach((expression: ts.BinaryExpression) => {
         //  this.onComplete = this._onComplete.bind(this);
         if(expression.operatorToken.kind ==ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(expression.left) && expression.left.expression.kind==ts.SyntaxKind.ThisKeyword ){
@@ -106,21 +103,26 @@ function getInstancePropertiesFromClassStatement(
                 if(match) {
                     type = memberTypes.get(match[1])!;
                 }else{
-                    for( let rt of referenceTypes) {
-                        match = callText.match(new RegExp(rt));
-                        if (match) {
-                            referenceType = match[1];
+                    if(compilationOptions.classProperty && className){
+                        const referenceName =  compilationOptions.classProperty.customReferenceType(className, callText);
+                        if(referenceName){
+                            referenceType = referenceName;
                         }
                     }
                 }
+            }
+
+            let isValidPropertyName = true;
+            if(compilationOptions.classProperty && className){
+                isValidPropertyName =  compilationOptions.classProperty.propertyNameValidator(className, propertyName);
             }
 
             const process = isReactClass
                 ? propertyName.toLowerCase() !== 'state' &&
                   propertyName.toLowerCase() !== 'props' &&
                   propertyName.toLowerCase() !== 'setstate' &&
-                  !blackListProperties.includes(propertyName)
-                : true;
+                  isValidPropertyName
+                : isValidPropertyName;
 
             if (
                 process &&

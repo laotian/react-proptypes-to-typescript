@@ -2,6 +2,7 @@ import * as ts from 'typescript';
 import * as _ from 'lodash';
 
 import * as helpers from '../helpers';
+import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
@@ -30,7 +31,7 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  * SomeComponent.propTypes.bar = React.PropTypes.number;
  * ```
  */
-export function reactMovePropTypesToClassTransformFactoryFactory(typeChecker: ts.TypeChecker): Factory {
+export function reactMovePropTypesToClassTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactMovePropTypesToClassTransformFactory(context: ts.TransformationContext) {
         return function reactMovePropTypesToClassTransform(sourceFile: ts.SourceFile) {
             const visited = visitSourceFile(sourceFile, typeChecker);
