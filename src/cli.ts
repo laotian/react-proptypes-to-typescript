@@ -47,7 +47,6 @@ program
         const configFile = program.compileConfig ? path.resolve(program.compileConfig) : "";
         if(configFile && fs.existsSync(configFile)){
             compilationOptions = require(configFile);
-            console.log(JSON.stringify(compilationOptions));
             if(!compilationOptions.react){
                 compilationOptions.react = DEFAULT_COMPILATION_OPTIONS.react;
             }

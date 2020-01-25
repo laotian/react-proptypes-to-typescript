@@ -9,13 +9,11 @@ export interface CompilationOptions {
         reactClassValidator: (superClassName: string | undefined) => boolean;
     }
     classProperty?: {
-        propertyNameValidator: (className:string, propertyName:string) =>boolean;
-        customReferenceType: (className: string, express:string) => string | undefined;
+        propertyNameValidator: (superClassName:string, propertyName:string) =>boolean;
+        customReferenceType: (superClassName: string, express:string) => string | undefined;
     }
 }
 
-const referenceTypes =  ["this\\.produceModel\\((\\w+)\\)",   "this\\.produceUIModel\\((\\w+)\\)"];
-const blackListProperties = ["listViewType","needsPullDownToRefresh","needsPullUpToLoadMore","refreshingType","_renderFooterView","_listView","pageSize","emotionViewState","ipViewState","UIModel", "navigationBar","isListView"];
 const DEFAULT_COMPILATION_OPTIONS: CompilationOptions = {
     react: {
         reactClassValidator: function(superClassName) {
@@ -26,16 +24,10 @@ const DEFAULT_COMPILATION_OPTIONS: CompilationOptions = {
         }
     },
     classProperty: {
-        propertyNameValidator: function(className, propertyName) {
-            return !blackListProperties.includes(propertyName);
+        propertyNameValidator: function(superClassName, propertyName) {
+            return true;
         },
-        customReferenceType: function(className, express) {
-            for( let rt of referenceTypes) {
-                let  match = express.match(new RegExp(rt));
-                if (match) {
-                    return  match[1];
-                }
-            }
+        customReferenceType: function(superClassName, express) {
             return undefined;
         }
     }

@@ -14,7 +14,7 @@
         "clean:win": "rmdir /q /s dist",
         "build": "./node_modules/.bin/tsc --pretty",
         "preassets": "npm run build",
-        "assets": "node dist/cli.js assets/*.js"
+        "assets": "node dist/cli.js --compile-config compileConfig.js assets/*.js"
     },
     "jest": {
         "transform": {

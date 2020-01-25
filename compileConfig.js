@@ -1,5 +1,39 @@
-const referenceTypes =  ["this\\.produceModel\\((\\w+)\\)",   "this\\.produceUIModel\\((\\w+)\\)"];
-const blackListProperties = ["listViewType","needsPullDownToRefresh","needsPullUpToLoadMore","refreshingType","_renderFooterView","_listView","pageSize","emotionViewState","ipViewState","UIModel", "navigationBar","isListView"];
+const referenceTypes =  [
+    "this\\.produceModel\\((\\w+)\\)",
+    "this\\.produceUIModel\\((\\w+)\\)"
+];
+
+const blackListProperties = [
+    "listViewType",
+    "needsPullDownToRefresh",
+    "needsPullUpToLoadMore",
+    "refreshingType",
+    "_renderFooterView",
+    "_listView",
+    "pageSize",
+    "emotionViewState",
+    "ipViewState",
+    "UIModel",
+    "navigationBar",
+    "isListView"
+];
+
+const blackListModelProperties = [
+    "url",
+    "mParams",
+    "customAction",
+    "loadingStyle",
+    "isTrackClickParams",
+    "eventName",
+    "containerTag",
+    "loadType",
+    "isLoading",
+    "requestBeginTime",
+    "requestEndTime",
+    "dataParseTime",
+    "traceID",
+    "networkChannel"
+];
 
 module.exports =  {
     react: {
@@ -11,10 +45,13 @@ module.exports =  {
         }
     },
     classProperty: {
-        propertyNameValidator: function(className, propertyName) {
+        propertyNameValidator: function(superClassName, propertyName) {
+            if(superClassName && superClassName.indexOf("BaseModel")>0){
+                return !blackListModelProperties.includes(propertyName);
+            }
             return !blackListProperties.includes(propertyName);
         },
-        customReferenceType: function(className, express) {
+        customReferenceType: function(superClassName, express) {
             for( let rt of referenceTypes) {
                 let  match = express.match(new RegExp(rt));
                 if (match) {
