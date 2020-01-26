@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import * as path from 'path';
 
 import { TransformFactoryFactory } from '.';
+import { strict } from 'assert';
 
 export interface CompilationOptions {
     react?: {
@@ -35,6 +36,39 @@ const DEFAULT_COMPILATION_OPTIONS: CompilationOptions = {
 
 export { DEFAULT_COMPILATION_OPTIONS };
 
+function collectProperties(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker): Array<string> {
+    let array = new Array<string>();
+    sourceFile.statements.forEach(statement=>{
+    if(ts.isClassDeclaration(statement)){
+        if(statement.heritageClauses){
+            statement.heritageClauses.forEach(heritageClause=>{
+                heritageClause.types.forEach(type=>{
+
+                    console.log("======begin=====");
+                   typeChecker.getTypeAtLocation(statement).getProperties().forEach(value=>{
+                       console.log(value.escapedName);
+                   });
+                    console.log("======end=====");
+
+                    console.log(typeChecker.getTypeAtLocation(type).getConstraint());
+                    // if(baseTypes){
+                    //     console.log("found baseType:"+baseTypes);
+                    //     baseTypes.forEach(baseType=>{
+                    //         baseType.getProperties().forEach(p=>{
+                    //             console.log(":::"+p.escapedName);
+                    //         })
+                    //     })
+                    // }
+                    // console.log("parent:::"+type.getText()+",sourceFile:"+type.getSourceFile().fileName+",typeChecker.getTypeAtLocation():"+typeChecker.typeToString(typeChecker.getTypeAtLocation(type)));
+                })
+            })
+        }
+    }
+});
+    return array;
+}
+
+
 /**
  * Compile and return result TypeScript
  * @param filePath Path to file to compile
@@ -50,12 +84,21 @@ export function compile(
     };
 
     const program = ts.createProgram([filePath], compilerOptions);
+
+
     // `program.getSourceFiles()` will include those imported files,
     // like: `import * as a from './file-a'`.
     // We should only transform current file.
     const sourceFiles = program.getSourceFiles().filter(sf => path.normalize(sf.fileName) === path.normalize(filePath));
     const typeChecker = program.getTypeChecker();
 
+
+    // program.getSourceFiles().forEach(sourceFile=>{
+    //     if(!sourceFile.isDeclarationFile){
+    //         console.log(">>"+sourceFile.fileName);
+    //     }
+    // });
+    collectProperties(sourceFiles[0],typeChecker);
     const result = ts.transform(
         sourceFiles,
         factoryFactories.map(factoryFactory => factoryFactory(typeChecker, compilationOptions), compilerOptions),
