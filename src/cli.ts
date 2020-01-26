@@ -38,7 +38,7 @@ program
     .option('--print', 'print output to console', false)
     .option('--check', 'check @ts-ignore error and module.exports error', false)
     .option('--rename','rename .js file extension name to .ts or .tsx',false)
-    .option('--compile-config <string>','set compiler config file','')
+    .option('--compile-config <string>','set compiler config file','compileConfig.js')
     .usage('[options] <filename or glob>')
     .command('* [glob/filename...]')
     .action((globPatterns: string[]) => {

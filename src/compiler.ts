@@ -11,7 +11,7 @@ export interface CompilationOptions {
     classProperty?: {
         propertyNameValidator: (superClassName:string, propertyName:string) =>boolean;
         customReferenceType: (superClassName: string, express:string) => string | undefined;
-    }
+    },
 }
 
 const DEFAULT_COMPILATION_OPTIONS: CompilationOptions = {

@@ -11,6 +11,7 @@ import { classInstanceVariablesTransformFactoryFactory } from './transforms/clas
 import {jsDocTransformFactoryFactory} from './transforms/jsdoc-transform';
 import {importAbsolutePathTransformFactoryFactory} from './transforms/import-absolute-path-transform';
 import {objectVariableTransformFactoryFactory} from './transforms/object-variable-transform';
+import {onResponseTransformFactoryFactory} from './transforms/on-response-transform';
 
 export {
     reactMovePropTypesToClassTransformFactoryFactory,
@@ -36,6 +37,7 @@ export const allTransforms = [
     jsDocTransformFactoryFactory,
     importAbsolutePathTransformFactoryFactory,
     objectVariableTransformFactoryFactory,
+    onResponseTransformFactoryFactory,
 ];
 
 export type TransformFactoryFactory = (typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) => ts.TransformerFactory<ts.SourceFile>;
