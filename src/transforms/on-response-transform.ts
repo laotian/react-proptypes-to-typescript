@@ -63,7 +63,7 @@ export function onResponseTransformFactoryFactory(typeChecker: ts.TypeChecker, c
             }
         });
 
-        if(!found && foundResponse) {
+        if(!found && foundResponse && sourceFile.fileName.indexOf("js/RDF/")<0) {
             const newImportDeclaration = ts.createImportDeclaration(undefined,undefined,ts.createImportClause(ts.createIdentifier(DATA_MODEL), undefined), ts.createStringLiteral(DATA_MODEL_PATH));
             if(lastImport){
                 statements = ts.createNodeArray(helpers.insertAfter(statements, lastImport, newImportDeclaration));

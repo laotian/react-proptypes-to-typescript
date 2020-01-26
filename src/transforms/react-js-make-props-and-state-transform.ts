@@ -58,7 +58,7 @@ function visitReactClassDeclaration(
     shouldMakeStateTypeDeclaration = shouldMakeStateTypeDeclaration || customExtend;
 
     let interfaceHeritageClause = customExtend ? [createInterfaceHeritageClause()] : undefined;
-    const propsInterfaceDeclaration = ts.createInterfaceDeclaration(
+    let propsInterfaceDeclaration: ts.Statement = ts.createInterfaceDeclaration(
         [],
         [],
         propTypeName,
@@ -67,8 +67,12 @@ function visitReactClassDeclaration(
         interfaceMembers,
     );
 
+    if(interfaceMembers.length==0 && customExtend){
+        propsInterfaceDeclaration =  ts.createTypeAliasDeclaration([], [], propTypeName, [], ts.createTypeReferenceNode('Props',[]));
+    }
+
     let statesHeritageClause = customExtend ?  [createStatesHeritageClause()] : undefined;
-    const statesInterfaceDeclaration = ts.createInterfaceDeclaration(
+    let statesInterfaceDeclaration: ts.Statement = ts.createInterfaceDeclaration(
         [],
         [],
         stateTypeName,
@@ -77,7 +81,9 @@ function visitReactClassDeclaration(
         (states as ts.TypeLiteralNode).members,
     );
 
-
+    if((states as ts.TypeLiteralNode).members.length==0 && customExtend){
+        statesInterfaceDeclaration =  ts.createTypeAliasDeclaration([], [], stateTypeName, [], ts.createTypeReferenceNode('States',[]));
+    }
 
     const propTypeRef = ts.createTypeReferenceNode(propTypeName, []);
     const stateTypeRef = ts.createTypeReferenceNode(stateTypeName, []);
@@ -248,22 +254,47 @@ function getPropsTypeOfReactComponentClass(
     return ts.createTypeLiteralNode([]);
 }
 
+function isThisProperty(n: ts.Node, properyName: string): n is ts.PropertyAccessExpression {
+    if(ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.name) && n.name.text===properyName ){
+        if(n.expression.kind==ts.SyntaxKind.ThisKeyword){
+            return  true;
+        }
+    }
+    return false;
+}
+
+function isThisState(n: ts.Node): n is ts.PropertyAccessExpression {
+   return isThisProperty(n, "state");
+}
+
+function isThisProps(n: ts.Node): n is ts.PropertyAccessExpression {
+    return isThisProperty(n, "props");
+}
+
 function getStatesOfReactComponentClass(
     classDeclaration: ts.ClassDeclaration,
     typeChecker: ts.TypeChecker,
 ): ts.TypeNode {
     const members: ts.PropertySignature[] = [];
-    const addMember = (name: ts.Identifier) => {
+    const addMember = (name: ts.Identifier, required: boolean = false) => {
         const text = name ? name.text : '';
         if (text && !members.find(m => (m.name as ts.Identifier).text === text)) {
             const type = typeChecker.getTypeAtLocation(name);
+            let typeNode = typeChecker.typeToTypeNode(type);
+            const typeStr = typeChecker.typeToString(type);
+            if(["true","false"].includes(typeStr)){
+                typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
+            }else if(["undefined","null"].includes(typeStr)){
+                typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+            }
             const member = ts.createPropertySignature(
                 [],
                 text,
-                ts.createToken(ts.SyntaxKind.QuestionToken),
-                typeChecker.typeToTypeNode(type),
+                required ? undefined : ts.createToken(ts.SyntaxKind.QuestionToken),
+                typeNode,
                 undefined,
             );
+            // console.log("add____"+text);
             members.push(member);
         }
     };
@@ -285,7 +316,29 @@ function getStatesOfReactComponentClass(
             const expression = s.expression as ts.BinaryExpression;
             const objectLiteral = expression.right as ts.ObjectLiteralExpression;
             objectLiteral.properties.forEach((p: any) => {
-                addMember(p.name);
+                addMember(p.name, true);
+            });
+        });
+
+        // constructor  Object.assing(this.state , {})
+        const objectAssignState = helpers.filter<ts.ExpressionStatement>(node, n => {
+            return ts.isExpressionStatement(n) &&
+            ts.isCallExpression(n.expression) &&
+            ts.isPropertyAccessExpression(n.expression.expression) &&
+            ts.isIdentifier(n.expression.expression.name) &&
+            n.expression.expression.name.text =='assign' &&
+            ts.isIdentifier(n.expression.expression.expression) &&
+            n.expression.expression.expression.text==='Object' &&
+            n.expression.arguments.length == 2 &&
+            isThisState(n.expression.arguments[0]) &&
+            ts.isObjectLiteralExpression(n.expression.arguments[1]);
+        });
+
+        objectAssignState.forEach(s => {
+            const expression = s.expression as ts.CallExpression;
+            const objectLiteral = expression.arguments[1] as ts.ObjectLiteralExpression;
+            objectLiteral.properties.forEach((p: any) => {
+                addMember(p.name, true);
             });
         });
 
@@ -303,7 +356,7 @@ function getStatesOfReactComponentClass(
 
         setStateArguments.forEach(arg => {
             arg.properties.forEach((p: any) => {
-                addMember(p.name);
+                addMember(p.name, false);
             });
         });
 
@@ -320,17 +373,20 @@ function getStatesOfReactComponentClass(
 
         variableDeclarations.forEach(v => {
             (v.name as any).elements.forEach((el: any) => {
-                addMember(el.name);
+                addMember(el.name, false);
             });
         });
 
         // property access expresion like this.state.a
         const propertyAccessExpressions = helpers.filter<ts.PropertyAccessExpression>(node, n => {
-            return ts.isPropertyAccessExpression(n) && n.getText().match(/this\.state\./) ? true : false;
+            if(ts.isPropertyAccessExpression(n) && isThisState(n.expression)){
+                return true;
+            }
+            return false;
         });
 
         propertyAccessExpressions.forEach(p => {
-            addMember(p.name);
+            addMember(p.name, false);
         });
     }
 
@@ -389,7 +445,11 @@ function getPropsOfReactComponentClass(
     });
 
     const propertyAccessExpressions = helpers.filter<ts.PropertyAccessExpression>(classDeclaration.members, node => {
-        return ts.isPropertyAccessExpression(node) && node.getText().indexOf('this.props.') === 0;
+        if(ts.isPropertyAccessExpression(node) && isThisProps(node.expression)){
+            return true;
+        }
+        return false;
+        // return ts.isPropertyAccessExpression(node) && node.getText().indexOf('this.props.') === 0;
     });
 
     propertyAccessExpressions.forEach(node => {
