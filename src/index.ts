@@ -12,6 +12,7 @@ import {jsDocTransformFactoryFactory} from './transforms/jsdoc-transform';
 import {importAbsolutePathTransformFactoryFactory} from './transforms/import-absolute-path-transform';
 import {objectVariableTransformFactoryFactory} from './transforms/object-variable-transform';
 import {onResponseTransformFactoryFactory} from './transforms/on-response-transform';
+import {objectAssignStateFactoryFactory} from './transforms/object-assign-state-transform';
 
 export {
     reactMovePropTypesToClassTransformFactoryFactory,
@@ -27,6 +28,7 @@ export {
 
 export const allTransforms = [
     reactMovePropTypesToClassTransformFactoryFactory,
+
     reactJSMakePropsAndStateInterfaceTransformFactoryFactory,
     reactStatelessFunctionMakePropsTransformFactoryFactory,
     collapseIntersectionInterfacesTransformFactoryFactory,
@@ -38,6 +40,7 @@ export const allTransforms = [
     importAbsolutePathTransformFactoryFactory,
     objectVariableTransformFactoryFactory,
     onResponseTransformFactoryFactory,
+    objectAssignStateFactoryFactory,
 ];
 
 export type TransformFactoryFactory = (typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) => ts.TransformerFactory<ts.SourceFile>;

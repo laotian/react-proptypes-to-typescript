@@ -257,21 +257,12 @@ function getPropsTypeOfReactComponentClass(
     return ts.createTypeLiteralNode([]);
 }
 
-function isThisProperty(n: ts.Node, properyName: string): n is ts.PropertyAccessExpression {
-    if(ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.name) && n.name.text===properyName ){
-        if(n.expression.kind==ts.SyntaxKind.ThisKeyword){
-            return  true;
-        }
-    }
-    return false;
-}
-
 function isThisState(n: ts.Node): n is ts.PropertyAccessExpression {
-   return isThisProperty(n, "state");
+   return helpers.isThisProperty(n, "state");
 }
 
 function isThisProps(n: ts.Node): n is ts.PropertyAccessExpression {
-    return isThisProperty(n, "props");
+    return helpers.isThisProperty(n, "props");
 }
 
 function getStatesOfReactComponentClass(
@@ -329,19 +320,7 @@ function getStatesOfReactComponentClass(
         });
 
         // constructor  Object.assing(this.state , {})
-        const objectAssignState = helpers.filter<ts.ExpressionStatement>(node, n => {
-            return ts.isExpressionStatement(n) &&
-            ts.isCallExpression(n.expression) &&
-            ts.isPropertyAccessExpression(n.expression.expression) &&
-            ts.isIdentifier(n.expression.expression.name) &&
-            n.expression.expression.name.text =='assign' &&
-            ts.isIdentifier(n.expression.expression.expression) &&
-            n.expression.expression.expression.text==='Object' &&
-            n.expression.arguments.length == 2 &&
-            isThisState(n.expression.arguments[0]) &&
-            ts.isObjectLiteralExpression(n.expression.arguments[1]);
-        });
-
+        const objectAssignState = helpers.filter<ts.ExpressionStatement>(node, helpers.isObjectAssignState);
         objectAssignState.forEach(s => {
             const expression = s.expression as ts.CallExpression;
             const objectLiteral = expression.arguments[1] as ts.ObjectLiteralExpression;
@@ -452,13 +431,15 @@ function getPropsOfReactComponentClass(
         }
     });
 
-    const propertyAccessExpressions = helpers.filter<ts.PropertyAccessExpression>(classDeclaration.members, node => {
+    const propertyAccessExpressions: ts.PropertyAccessExpression[] = [];
+    function visitEach(node: ts.Node) {
         if(ts.isPropertyAccessExpression(node) && isThisProps(node.expression)){
-            return true;
+            propertyAccessExpressions.push(node);
+        }else{
+            ts.forEachChild(node, visitEach);
         }
-        return false;
-        // return ts.isPropertyAccessExpression(node) && node.getText().indexOf('this.props.') === 0;
-    });
+    }
+    ts.forEachChild(classDeclaration, visitEach);
 
     propertyAccessExpressions.forEach(node => {
         names.push(node.name.text);

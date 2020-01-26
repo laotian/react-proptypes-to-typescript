@@ -172,6 +172,30 @@ export function convertReactStatelessFunctionToArrowFunction(
     );
 }
 
+export function isThisProperty(n: ts.Node, properyName: string): n is ts.PropertyAccessExpression {
+    if(ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.name) && n.name.text===properyName ){
+        if(n.expression.kind==ts.SyntaxKind.ThisKeyword){
+            return  true;
+        }
+    }
+    return false;
+}
+
+// Object.assign(this.state, {});
+export function isObjectAssignState(n: ts.Node): boolean {
+    // constructor  Object.assing(this.state , {})
+        return ts.isExpressionStatement(n) &&
+            ts.isCallExpression(n.expression) &&
+            ts.isPropertyAccessExpression(n.expression.expression) &&
+            ts.isIdentifier(n.expression.expression.name) &&
+            n.expression.expression.name.text =='assign' &&
+            ts.isIdentifier(n.expression.expression.expression) &&
+            n.expression.expression.expression.text==='Object' &&
+            n.expression.arguments.length == 2 &&
+            isThisProperty(n.expression.arguments[0], 'state') &&
+            ts.isObjectLiteralExpression(n.expression.arguments[1]);
+}
+
 /**
  * Insert an item in middle of an array after a specific item
  * @param collection
