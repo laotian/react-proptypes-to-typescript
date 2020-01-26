@@ -42,6 +42,21 @@ module.exports =  {
                 return /\w+BaseComponent|\w+BaseContainer|\w+BaseListContainer/.test(superClassName);
             }
             return false;
+        },
+        stateNameValidator: function(superClassName, stateName) {
+            if(superClassName){
+                return ![
+                    "dataSource",
+                    "hasMore",
+                    "isRefreshing",
+                    "isLoadingMore",
+                    "useSectionList",
+                    "renderBackgroundView",
+                    "ListViewCommon",
+                    "RDFListView"
+                ].includes(stateName);
+            }
+            return true;
         }
     },
     classProperty: {

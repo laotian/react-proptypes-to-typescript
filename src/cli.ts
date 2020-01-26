@@ -56,6 +56,9 @@ program
             if(!compilationOptions.react!.reactClassValidator){
                 compilationOptions.react!.reactClassValidator = DEFAULT_COMPILATION_OPTIONS.react!.reactClassValidator;
             }
+            if(!compilationOptions.react!.stateNameValidator){
+                compilationOptions.react!.stateNameValidator = DEFAULT_COMPILATION_OPTIONS.react!.reactClassValidator;
+            }
             if(!compilationOptions.classProperty!.propertyNameValidator){
                 compilationOptions.classProperty!.propertyNameValidator = DEFAULT_COMPILATION_OPTIONS.classProperty!.propertyNameValidator;
             }

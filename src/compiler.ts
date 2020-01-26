@@ -7,6 +7,7 @@ import { TransformFactoryFactory } from '.';
 export interface CompilationOptions {
     react?: {
         reactClassValidator: (superClassName: string | undefined) => boolean;
+        stateNameValidator: (superClassName: string | undefined, stateName: string) => boolean;
     }
     classProperty?: {
         propertyNameValidator: (superClassName:string, propertyName:string) =>boolean;
@@ -21,6 +22,9 @@ const DEFAULT_COMPILATION_OPTIONS: CompilationOptions = {
                  return /\w+BaseComponent|\w+BaseContainer|\w+BaseListContainer/.test(superClassName);
              }
              return false;
+        },
+        stateNameValidator: function(superClassName, stateName) {
+            return true;
         }
     },
     classProperty: {

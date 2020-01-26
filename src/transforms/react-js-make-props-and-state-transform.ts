@@ -5,12 +5,15 @@ import { CompilationOptions } from '../compiler';
 
 export type Factory = ts.TransformerFactory<ts.SourceFile>;
 
+let compilationOptions: CompilationOptions;
+
 /**
  * Get transform for transforming React code originally written in JS which does not have
  * props and state generic types
  * This transform will remove React component static "propTypes" member during transform
  */
-export function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
+export function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: ts.TypeChecker, _compilationOptions: CompilationOptions): Factory {
+    compilationOptions = _compilationOptions;
     return function reactJSMakePropsAndStateInterfaceTransformFactory(context: ts.TransformationContext) {
         return function reactJSMakePropsAndStateInterfaceTransform(sourceFile: ts.SourceFile) {
             const visited = visitSourceFile(sourceFile, typeChecker, compilationOptions);
@@ -275,6 +278,7 @@ function getStatesOfReactComponentClass(
     classDeclaration: ts.ClassDeclaration,
     typeChecker: ts.TypeChecker,
 ): ts.TypeNode {
+    const extendFrom = helpers.getComponentExtend(classDeclaration,typeChecker);
     const members: ts.PropertySignature[] = [];
     const addMember = (name: ts.Identifier, required: boolean = false) => {
         const text = name ? name.text : '';
@@ -295,6 +299,10 @@ function getStatesOfReactComponentClass(
                 undefined,
             );
             // console.log("add____"+text);
+            if(compilationOptions.react && !compilationOptions.react.stateNameValidator(extendFrom, text)){
+                return;
+            }
+
             members.push(member);
         }
     };
