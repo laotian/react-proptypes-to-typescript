@@ -103,6 +103,7 @@ program
                 }
                 console.log(`Transforming ${filePath}...`);
                 const extension = getExtension(filePath);
+                // const extension = ".tsx";
                 const newPath = filePath.replace(/\.jsx?$/, extension);
                 const temporaryPath = filePath + `_js2ts_${+new Date()}${extension}`;
                 try {
