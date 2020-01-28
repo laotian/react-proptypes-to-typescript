@@ -37,39 +37,15 @@ program
     .option('--check', 'check @ts-ignore error and module.exports error', false)
     .option('--rename','rename .js file extension name to .ts or .tsx',false)
     .option('--relative-import <always|never>','import clause fix absolute path, remove prefix /, eg: import Abc from "/js/abc" => import Abc from "js/abc"','always')
+    .option('--private-property <always|never>','add private modifier to class instance property name, eg: private fieldName: string','always')
     .option('--compile-config <string>','set compiler config file','compileConfig.js')
     .usage('[options] <filename or glob>')
     .command('* [glob/filename...]')
     .action((globPatterns: string[]) => {
-
-        let compilationOptions: CompilationOptions = DEFAULT_COMPILATION_OPTIONS;
-        const configFile = program.compileConfig ? path.resolve(program.compileConfig) : "";
-        if(configFile && fs.existsSync(configFile)){
-            compilationOptions = require(configFile);
-            if(!compilationOptions.react){
-                compilationOptions.react = DEFAULT_COMPILATION_OPTIONS.react;
-            }
-            if(!compilationOptions.classProperty){
-                compilationOptions.classProperty = DEFAULT_COMPILATION_OPTIONS.classProperty;
-            }
-            if(!compilationOptions.react!.reactClassValidator){
-                compilationOptions.react!.reactClassValidator = DEFAULT_COMPILATION_OPTIONS.react!.reactClassValidator;
-            }
-            if(!compilationOptions.react!.stateNameValidator){
-                compilationOptions.react!.stateNameValidator = DEFAULT_COMPILATION_OPTIONS.react!.reactClassValidator;
-            }
-            if(!compilationOptions.classProperty!.propertyNameValidator){
-                compilationOptions.classProperty!.propertyNameValidator = DEFAULT_COMPILATION_OPTIONS.classProperty!.propertyNameValidator;
-            }
-            if(!compilationOptions.classProperty!.customReferenceType){
-                compilationOptions.classProperty!.customReferenceType = DEFAULT_COMPILATION_OPTIONS.classProperty!.customReferenceType;
-            }
-        }
-
-        if(program.relativeImport==='always'){
-            compilationOptions.fixImportAbsolutePath = true;
-        }
-
+        let compilationOptions: CompilationOptions = {
+            fixImportAbsolutePath: (program.relativeImport==='always'),
+            privatePropertyName : (program.privateProperty==='always')
+        };
         const files = resolveGlobs(globPatterns);
         if (!files.length) {
             throw new Error('Nothing to do. You must provide file names or glob patterns to transform.');

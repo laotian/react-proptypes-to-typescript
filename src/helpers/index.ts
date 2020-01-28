@@ -4,30 +4,30 @@ import { CompilationOptions } from '../compiler';
 
 export * from './build-prop-type-interface';
 
-export function getComponentExtend(
+export function getReactComponentSuperClassName(
     classDeclaration: ts.ClassDeclaration | ts.ClassExpression,
     typeChecker: ts.TypeChecker,
 ): string | undefined {
-    // Only classes that extend React.Component
-    if (!classDeclaration.heritageClauses) {
-        return undefined;
-    }
-    if (classDeclaration.heritageClauses.length !== 1) {
-        return undefined;
-    }
-
-    const firstHeritageClauses = classDeclaration.heritageClauses[0];
-
-    if (firstHeritageClauses.token !== ts.SyntaxKind.ExtendsKeyword) {
-        return undefined;
-    }
-
-    const expressionWithTypeArguments = firstHeritageClauses.types[0];
-
-    if (expressionWithTypeArguments && ts.isIdentifier(expressionWithTypeArguments.expression)) {
-        return expressionWithTypeArguments.expression.text;
+    if ((ts.isClassDeclaration(classDeclaration) || ts.isClassExpression(classDeclaration)) && classDeclaration.heritageClauses && classDeclaration.heritageClauses.length == 1) {
+        if (classDeclaration.heritageClauses[0].types.length == 1) {
+            const firstType = classDeclaration.heritageClauses[0].types[0];
+            const extendClassType = typeChecker.getTypeAtLocation(firstType);
+            // check extend component or subclass of component
+            if (extendClassType && extendClassType.getProperties().find(property => property.name === "shouldComponentUpdate")) {
+                if (ts.isIdentifier(firstType.expression)) {
+                    const superComponentName = firstType.expression.text;
+                    return superComponentName;
+                }
+            }
+        }
     }
     return undefined;
+}
+
+// 父类为Component的子类
+export function isReactComponentGrandson(classDeclaration: ts.ClassDeclaration | ts.ClassExpression, typeChecker: ts.TypeChecker) {
+    const superComponentName = getReactComponentSuperClassName(classDeclaration, typeChecker);
+    return superComponentName && !/React\.Component|Component/.test(superComponentName);
 }
 
 /**
@@ -38,23 +38,9 @@ export function getComponentExtend(
 export function isReactComponent(
     classDeclaration: ts.ClassDeclaration | ts.ClassExpression,
     typeChecker: ts.TypeChecker,
-    compilationOptions: CompilationOptions
 ): boolean {
-    // Only classes that extend React.Component
-    const typeSymbol = getComponentExtend(classDeclaration, typeChecker);
-    if (!typeSymbol) {
-        return false;
-    }
-
-    if (/React\.Component|Component/.test(typeSymbol)) {
-        return true;
-    }
-
-    if(compilationOptions.react){
-        return compilationOptions.react.reactClassValidator(typeSymbol);
-    }
-
-    return false;
+    const superComponentName = getReactComponentSuperClassName(classDeclaration, typeChecker);
+    return  superComponentName != undefined;
 }
 
 /**

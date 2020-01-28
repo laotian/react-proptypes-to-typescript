@@ -2,43 +2,16 @@ import * as ts from 'typescript';
 import chalk from 'chalk';
 import * as path from 'path';
 import * as fs from 'fs';
-
 import { TransformFactoryFactory } from '.';
 
-
 export interface CompilationOptions {
-    react?: {
-        reactClassValidator: (superClassName: string | undefined) => boolean;
-        stateNameValidator: (superClassName: string | undefined, stateName: string) => boolean;
-    }
-    classProperty?: {
-        propertyNameValidator: (superClassName:string, propertyName:string) =>boolean;
-        customReferenceType: (superClassName: string, express:string) => string | undefined;
-    },
     fixImportAbsolutePath: boolean,
+    privatePropertyName: boolean,
 }
 
 const DEFAULT_COMPILATION_OPTIONS: CompilationOptions = {
-    react: {
-        reactClassValidator: function(superClassName) {
-             if(superClassName) {
-                 return /\w+BaseComponent|\w+BaseContainer|\w+BaseListContainer/.test(superClassName);
-             }
-             return false;
-        },
-        stateNameValidator: function(superClassName, stateName) {
-            return true;
-        }
-    },
-    classProperty: {
-        propertyNameValidator: function(superClassName, propertyName) {
-            return true;
-        },
-        customReferenceType: function(superClassName, express) {
-            return undefined;
-        }
-    },
     fixImportAbsolutePath: true,
+    privatePropertyName: true,
 };
 
 export { DEFAULT_COMPILATION_OPTIONS };

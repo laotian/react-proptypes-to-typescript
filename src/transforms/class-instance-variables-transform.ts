@@ -59,32 +59,19 @@ function getInstancePropertiesFromClassStatement(
     typeChecker: ts.TypeChecker,
     sourceFile: ts.SourceFile,
 ): Array<ts.PropertyDeclaration> {
-
-    const className = helpers.getComponentExtend(classStatement, typeChecker);
-    const isReactClass = helpers.isReactComponent(classStatement, typeChecker, compilationOptions);
-    // if(!isReactClass){
-    //     return [];
-    // }
-
     const propertyDeclarations: Array<ts.PropertyDeclaration> = [];
     const memberTypes = new Map<string,ts.Type>();
 
-    const memberNames = new Array<string>();
-
-
     let constructorStartIndex = -1;
     let constructorEndIndex = -1;
-
     classStatement.members.forEach(member => {
         if(ts.isConstructorDeclaration(member)){
             constructorStartIndex = member.getStart();
             constructorEndIndex = member.getEnd();
         }
-        if(member.name && ts.isIdentifier(member.name) && member.name.text){
-            memberTypes.set(member.name.text,typeChecker.getTypeAtLocation(member));
-            memberNames.push(member.name.text);
-        }
     });
+
+    const memberNames =  typeChecker.getTypeAtLocation(classStatement).getProperties().map(propertyName=>propertyName.name);
     const expressions = helpers.filter<ts.BinaryExpression>(
         classStatement.members,
         ts.isBinaryExpression,
@@ -102,32 +89,11 @@ function getInstancePropertiesFromClassStatement(
                 const callText = expression.right.getText();
                 let match = callText.match(/^this\.(\w+)\.bind\(this\)/);
                 if(match) {
-                    type = memberTypes.get(match[1])!;
-                }else{
-                    if(compilationOptions.classProperty && className){
-                        const referenceName =  compilationOptions.classProperty.customReferenceType(className, callText);
-                        if(referenceName){
-                            referenceType = referenceName;
-                        }
-                    }
+                    type = typeChecker.getTypeAtLocation((expression.right.expression as ts.PropertyAccessExpression).expression);
                 }
             }
 
-            let isValidPropertyName = true;
-            if(compilationOptions.classProperty && className){
-                isValidPropertyName =  compilationOptions.classProperty.propertyNameValidator(className, propertyName);
-            }
-
-            const process = isReactClass
-                ? propertyName.toLowerCase() !== 'state' &&
-                  propertyName.toLowerCase() !== 'props' &&
-                  propertyName.toLowerCase() !== 'setstate' &&
-                  isValidPropertyName
-                : isValidPropertyName;
-
-            if (
-                process &&
-                !memberNames.find(name => name === propertyName) &&
+            if (!memberNames.includes(propertyName) &&
                 !propertyDeclarations.find(p => (p.name as ts.Identifier).text === propertyName)
             ) {
                 const typeString = typeChecker.typeToString(type);
@@ -157,7 +123,7 @@ function getInstancePropertiesFromClassStatement(
 
                 const propertyDeclaration = ts.createProperty(
                     [], // decorator
-                    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Private), // modifier
+                    compilationOptions.privatePropertyName ? ts.createModifiersFromModifierFlags(ts.ModifierFlags.Private) : undefined, // modifier  todo 用户可设置是否默认为private访问权限
                     propertyName,
                     isRequired ? undefined : ts.createToken(ts.SyntaxKind.QuestionToken),
                     typeNode,
@@ -175,25 +141,6 @@ function getInstancePropertiesFromClassStatement(
         if (n < m) return -1;
         return 0;
     });
-
-    // const hasDefaultProps = memberNames.find(value => value == 'defaultProps');
-    // if(hasDefaultProps) {
-    //     const className = classStatement && classStatement.name && classStatement.name.getText(sourceFile);
-    //     const propsTypes = ts.createIntersectionTypeNode([
-    //         ts.createTypeReferenceNode(`${className}Props`, []),
-    //         ts.createTypeReferenceNode(`typeof ${className}.defaultProps`, []),
-    //     ]);
-    //     const propertyDeclaration = ts.createProperty(
-    //         [], // decorator
-    //         [], // modifier
-    //         "props",
-    //         ts.createToken(ts.SyntaxKind.ExclamationToken),
-    //         propsTypes,
-    //         undefined,
-    //     );
-    //     propertyDeclarations.push(propertyDeclaration);
-    // }
-
     return propertyDeclarations;
 }
 
@@ -201,5 +148,3 @@ export default  {
     recompile: false,
     factory:  classInstanceVariablesTransformFactoryFactory,
 }
-
-

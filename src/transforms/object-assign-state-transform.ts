@@ -26,9 +26,8 @@ function objectAssignStateFactoryFactory(typeChecker: ts.TypeChecker, compilatio
             function visitSourceFile(sourceFile: ts.SourceFile, typeCheck: ts.TypeChecker) {
                 let statements = sourceFile.statements;
                 statements = ts.createNodeArray(statements.map(statement => {
-                    if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker, compilationOptions)) {
-                        const extendFrom = helpers.getComponentExtend(statement, typeChecker)!;
-                        const customExtend = !["React.Component", "Component"].includes(extendFrom);
+                    if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker)) {
+                        const customExtend = helpers.isReactComponentGrandson(statement, typeChecker);
                         const members = statement.members.map(member => {
                             if (ts.isConstructorDeclaration(member)) {
                                 let block = member.body;

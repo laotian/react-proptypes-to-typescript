@@ -25,7 +25,7 @@ function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: t
             function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) {
                 let newSourceFile = sourceFile;
                 for (const statement of sourceFile.statements) {
-                    if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker, compilationOptions)) {
+                    if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker)) {
                         newSourceFile = visitReactClassDeclaration(statement, newSourceFile, typeChecker);
                     }
                 }
@@ -255,7 +255,6 @@ function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: t
                 typeChecker: ts.TypeChecker,
                 superStateMembers: Array<string>
             ) {
-                const extendFrom = helpers.getComponentExtend(classDeclaration, typeChecker);
                 const members: ts.PropertySignature[] = [];
                 const addMember = (name: ts.Identifier, required: boolean = false) => {
                     const text = name ? name.text : '';
@@ -275,10 +274,6 @@ function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: t
                             typeNode,
                             undefined,
                         );
-                        // if(compilationOptions.react && !compilationOptions.react.stateNameValidator(extendFrom, text)){
-                        //     return;
-                        // }
-
                         members.push(member);
                     }
                 };

@@ -27,7 +27,7 @@ function reactRemoveStaticPropTypesMemberTransformFactoryFactory(typeChecker: ts
                 return visited;
 
                 function visitor(node: ts.Node) {
-                    if (ts.isClassDeclaration(node) && helpers.isReactComponent(node, typeChecker, compilationOptions)) {
+                    if (ts.isClassDeclaration(node) && helpers.isReactComponent(node, typeChecker)) {
                         return ts.updateClassDeclaration(
                             node,
                             node.decorators,
