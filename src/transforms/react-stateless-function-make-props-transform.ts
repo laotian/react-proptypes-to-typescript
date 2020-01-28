@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import * as helpers from '../helpers';
 import { CompilationOptions } from '../compiler';
 
-export type Factory = ts.TransformerFactory<ts.SourceFile>;
+export type Factory = helpers.TransformFactoryAndRecompile;
 
 /**
  * Transform react stateless components
@@ -34,14 +34,14 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  *   message: React.PropTypes.string,
  * }
  */
-export function reactStatelessFunctionMakePropsTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
+function reactStatelessFunctionMakePropsTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactStatelessFunctionMakePropsTransformFactory(context: ts.TransformationContext) {
-        return function reactStatelessFunctionMakePropsTransform(sourceFile: ts.SourceFile) {
-            const visited = visitSourceFile(sourceFile, typeChecker);
-            ts.addEmitHelpers(visited, context.readEmitHelpers());
-            return visited;
-        };
-    };
+            return function reactStatelessFunctionMakePropsTransform(sourceFile: ts.SourceFile) {
+                const visited = visitSourceFile(sourceFile, typeChecker);
+                ts.addEmitHelpers(visited, context.readEmitHelpers());
+                return visited;
+            };
+        }
 }
 
 function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker) {
@@ -120,3 +120,9 @@ function getPropTypesFromTypeAssignment(propTypesExpressionStatement: ts.Express
 
     return ts.createTypeLiteralNode([]);
 }
+
+export default {
+    recompile: false,
+    factory: reactStatelessFunctionMakePropsTransformFactoryFactory,
+}
+

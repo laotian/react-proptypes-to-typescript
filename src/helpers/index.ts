@@ -347,3 +347,5 @@ function walk(statements: ts.Node[] | ts.NodeArray<ts.Node> = [], callback: (nod
         }
     }
 }
+
+export type TransformFactoryAndRecompile =   ts.TransformerFactory<ts.SourceFile>

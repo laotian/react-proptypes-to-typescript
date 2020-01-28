@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import * as helpers from '../helpers';
 import { CompilationOptions } from '../compiler';
 
-export type Factory = ts.TransformerFactory<ts.SourceFile>;
+export type Factory = helpers.TransformFactoryAndRecompile;
 
 /**
  * Remove `import PropTypes from 'prop-types'` or
@@ -18,25 +18,25 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  * After:
  * import React from 'react'
  */
-export function reactRemovePropTypesImportTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
+function reactRemovePropTypesImportTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactRemovePropTypesImportTransformFactory(context: ts.TransformationContext) {
-        return function reactRemovePropTypesImportTransform(sourceFile: ts.SourceFile) {
-            const visited = ts.updateSourceFileNode(
-                sourceFile,
-                sourceFile.statements
-                    .filter(s => {
-                        return !(
-                            ts.isImportDeclaration(s) &&
-                            ts.isStringLiteral(s.moduleSpecifier) &&
-                            s.moduleSpecifier.text === 'prop-types'
-                        );
-                    })
-                    .map(updateReactImportIfNeeded),
-            );
-            ts.addEmitHelpers(visited, context.readEmitHelpers());
-            return visited;
-        };
-    };
+            return function reactRemovePropTypesImportTransform(sourceFile: ts.SourceFile) {
+                const visited = ts.updateSourceFileNode(
+                    sourceFile,
+                    sourceFile.statements
+                        .filter(s => {
+                            return !(
+                                ts.isImportDeclaration(s) &&
+                                ts.isStringLiteral(s.moduleSpecifier) &&
+                                s.moduleSpecifier.text === 'prop-types'
+                            );
+                        })
+                        .map(updateReactImportIfNeeded),
+                );
+                ts.addEmitHelpers(visited, context.readEmitHelpers());
+                return visited;
+            };
+        }
 }
 
 function updateReactImportIfNeeded(statement: ts.Statement) {
@@ -74,4 +74,9 @@ function updateReactImportIfNeeded(statement: ts.Statement) {
         newImportClause,
         statement.moduleSpecifier,
     );
+}
+
+export default {
+    recompile: false,
+    factory: reactRemovePropTypesImportTransformFactoryFactory,
 }

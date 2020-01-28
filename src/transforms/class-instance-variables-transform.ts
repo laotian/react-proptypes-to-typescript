@@ -1,8 +1,9 @@
 import * as ts from 'typescript';
 import * as helpers from '../helpers';
 import { CompilationOptions } from '../compiler';
+import { TransformFactoryAndRecompile } from '../helpers';
 
-export type Factory = ts.TransformerFactory<ts.SourceFile>;
+export type Factory = helpers.TransformFactoryAndRecompile;
 
 let compilationOptions:CompilationOptions;
 
@@ -25,16 +26,16 @@ let compilationOptions:CompilationOptions;
  *    }
  * }
  */
-export function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.TypeChecker, _compilationOptions: CompilationOptions): Factory {
+function classInstanceVariablesTransformFactoryFactory(typeChecker: ts.TypeChecker, _compilationOptions: CompilationOptions): Factory {
     compilationOptions = _compilationOptions;
-    return function classInstanceVariablesTransformFactory(context: ts.TransformationContext) {
-        return function classInstanceVariablesTransform(sourceFile: ts.SourceFile) {
-            const visited = visitSourceFile(sourceFile, typeChecker);
-            ts.addEmitHelpers(visited, context.readEmitHelpers());
+    return  function classInstanceVariablesTransformFactory(context: ts.TransformationContext) {
+            return function classInstanceVariablesTransform(sourceFile: ts.SourceFile) {
+                const visited = visitSourceFile(sourceFile, typeChecker);
+                ts.addEmitHelpers(visited, context.readEmitHelpers());
 
-            return visited;
-        };
-    };
+                return visited;
+            };
+        }
 }
 
 function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker) {
@@ -195,3 +196,10 @@ function getInstancePropertiesFromClassStatement(
 
     return propertyDeclarations;
 }
+
+export default  {
+    recompile: false,
+    factory:  classInstanceVariablesTransformFactoryFactory,
+}
+
+

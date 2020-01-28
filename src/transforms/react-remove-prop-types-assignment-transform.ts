@@ -3,7 +3,7 @@ import * as ts from 'typescript';
 import * as helpers from '../helpers';
 import { CompilationOptions } from '../compiler';
 
-export type Factory = ts.TransformerFactory<ts.SourceFile>;
+export type Factory = helpers.TransformFactoryAndRecompile;
 
 /**
  * Remove Component.propTypes statements
@@ -16,15 +16,20 @@ export type Factory = ts.TransformerFactory<ts.SourceFile>;
  * After
  * class SomeComponent extends React.Component<{foo: number;}, {bar: string;}> {}
  */
-export function reactRemovePropTypesAssignmentTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
+function reactRemovePropTypesAssignmentTransformFactoryFactory(typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions): Factory {
     return function reactRemovePropTypesAssignmentTransformFactory(context: ts.TransformationContext) {
-        return function reactRemovePropTypesAssignmentTransform(sourceFile: ts.SourceFile) {
-            const visited = ts.updateSourceFileNode(
-                sourceFile,
-                sourceFile.statements.filter(s => !helpers.isReactPropTypeAssignmentStatement(s)),
-            );
-            ts.addEmitHelpers(visited, context.readEmitHelpers());
-            return visited;
-        };
-    };
+            return function reactRemovePropTypesAssignmentTransform(sourceFile: ts.SourceFile) {
+                const visited = ts.updateSourceFileNode(
+                    sourceFile,
+                    sourceFile.statements.filter(s => !helpers.isReactPropTypeAssignmentStatement(s)),
+                );
+                ts.addEmitHelpers(visited, context.readEmitHelpers());
+                return visited;
+            };
+        }
+}
+
+export default {
+    recompile: false,
+    factory: reactRemovePropTypesAssignmentTransformFactoryFactory,
 }

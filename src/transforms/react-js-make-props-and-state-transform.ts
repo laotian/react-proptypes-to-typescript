@@ -3,7 +3,7 @@ import * as _ from 'lodash';
 import * as helpers from '../helpers';
 import { CompilationOptions } from '../compiler';
 
-export type Factory = ts.TransformerFactory<ts.SourceFile>;
+export type Factory = helpers.TransformFactoryAndRecompile;
 
 let compilationOptions: CompilationOptions;
 
@@ -12,449 +12,431 @@ let compilationOptions: CompilationOptions;
  * props and state generic types
  * This transform will remove React component static "propTypes" member during transform
  */
-export function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: ts.TypeChecker, _compilationOptions: CompilationOptions): Factory {
+function reactJSMakePropsAndStateInterfaceTransformFactoryFactory(typeChecker: ts.TypeChecker, _compilationOptions: CompilationOptions): Factory {
     compilationOptions = _compilationOptions;
     return function reactJSMakePropsAndStateInterfaceTransformFactory(context: ts.TransformationContext) {
-        return function reactJSMakePropsAndStateInterfaceTransform(sourceFile: ts.SourceFile) {
-            const visited = visitSourceFile(sourceFile, typeChecker, compilationOptions);
-            ts.addEmitHelpers(visited, context.readEmitHelpers());
+            return function reactJSMakePropsAndStateInterfaceTransform(sourceFile: ts.SourceFile) {
+                const visited = visitSourceFile(sourceFile, typeChecker, compilationOptions);
+                ts.addEmitHelpers(visited, context.readEmitHelpers());
 
-            return visited;
-        };
-    };
-}
+                return visited;
+            };
 
-function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) {
-    let newSourceFile = sourceFile;
-    for (const statement of sourceFile.statements) {
-        if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker, compilationOptions)) {
-            newSourceFile = visitReactClassDeclaration(statement, newSourceFile, typeChecker);
-        }
-    }
+            function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) {
+                let newSourceFile = sourceFile;
+                for (const statement of sourceFile.statements) {
+                    if (ts.isClassDeclaration(statement) && helpers.isReactComponent(statement, typeChecker, compilationOptions)) {
+                        newSourceFile = visitReactClassDeclaration(statement, newSourceFile, typeChecker);
+                    }
+                }
 
-    return newSourceFile;
-}
+                return newSourceFile;
+            }
 
-function visitReactClassDeclaration(
-    classDeclaration: ts.ClassDeclaration,
-    sourceFile: ts.SourceFile,
-    typeChecker: ts.TypeChecker,
-) {
-    if (!classDeclaration.heritageClauses || !classDeclaration.heritageClauses.length) {
-        return sourceFile;
-    }
-    const className = classDeclaration && classDeclaration.name && classDeclaration.name.getText(sourceFile);
-    const propType = getPropsTypeOfReactComponentClass(classDeclaration, sourceFile); // qwert
-    const props = getPropsOfReactComponentClass(classDeclaration, sourceFile);
-    const interfaceMembers = _.unionBy([...propType.members, ...props], p =>
-        p.name ? (p.name as ts.Identifier).text : '',
-    );
-    const states = getStatesOfReactComponentClass(classDeclaration, typeChecker);
-    let shouldMakePropTypeDeclaration = interfaceMembers.length > 0;
-    let shouldMakeStateTypeDeclaration = !isStateMemberEmpty(states);
-    const propTypeName = `${className}Props`;
-    const stateTypeName = `${className}State`;
+            function visitReactClassDeclaration(
+                classDeclaration: ts.ClassDeclaration,
+                sourceFile: ts.SourceFile,
+                typeChecker: ts.TypeChecker,
+            ) {
+                if (!classDeclaration.heritageClauses || !classDeclaration.heritageClauses.length) {
+                    return sourceFile;
+                }
+                const className = classDeclaration && classDeclaration.name && classDeclaration.name.getText(sourceFile);
+                const propType = getPropsTypeOfReactComponentClass(classDeclaration, sourceFile); // qwert
+                const props = getPropsOfReactComponentClass(classDeclaration, sourceFile);
 
-    const extendFrom = helpers.getComponentExtend(classDeclaration, typeChecker)!;
-    const customExtend = !["React.Component","Component"].includes(extendFrom);
-    shouldMakePropTypeDeclaration = shouldMakePropTypeDeclaration || customExtend;
-    shouldMakeStateTypeDeclaration = shouldMakeStateTypeDeclaration || customExtend;
+                const propTypeName = `${className}Props`;
+                const stateTypeName = `${className}States`;
 
-    let interfaceHeritageClause = customExtend ? [createInterfaceHeritageClause()] : undefined;
-    let propsInterfaceDeclaration: ts.Statement = ts.createInterfaceDeclaration(
-        [],
-        [],
-        propTypeName,
-        [],
-        interfaceHeritageClause,
-        interfaceMembers,
-    );
+                let interfaceMembers = _.unionBy([...propType.members, ...props], p =>
+                    p.name ? (p.name as ts.Identifier).text : '',
+                );
+                // remove parent interface properties
+                const superInterfaceMembers = getProperties(propTypeName, sourceFile, typeChecker);
+                interfaceMembers = interfaceMembers.filter(member => {
+                    if (member.name && ts.isIdentifier(member.name) && superInterfaceMembers.includes(member.name.text)) {
+                        return false;
+                    }
+                    return true;
+                });
+                const superStateMembers = getProperties(stateTypeName, sourceFile, typeChecker);
+                const states = getStatesOfReactComponentClass(classDeclaration, typeChecker, superStateMembers);
 
-    if(interfaceMembers.length==0 && customExtend){
-        propsInterfaceDeclaration =  ts.createTypeAliasDeclaration([], [], propTypeName, [], ts.createTypeReferenceNode('Props',[]));
-    }
+                let propsInterfaceStatement = getInterfaceStatement(propTypeName, sourceFile)!;
+                let newPropsInterfaceStatement = ts.updateInterfaceDeclaration(
+                    propsInterfaceStatement,
+                    propsInterfaceStatement.decorators,
+                    propsInterfaceStatement.modifiers,
+                    propsInterfaceStatement.name,
+                    propsInterfaceStatement.typeParameters,
+                    propsInterfaceStatement.heritageClauses,
+                    interfaceMembers,
+                );
+                let statements = helpers.replaceItem(sourceFile.statements, propsInterfaceStatement, newPropsInterfaceStatement);
 
-    let statesHeritageClause = customExtend ?  [createStatesHeritageClause()] : undefined;
-    let statesInterfaceDeclaration: ts.Statement = ts.createInterfaceDeclaration(
-        [],
-        [],
-        stateTypeName,
-        [],
-        statesHeritageClause,
-        (states as ts.TypeLiteralNode).members,
-    );
+                let stateInterfaceStatement = getInterfaceStatement(stateTypeName, sourceFile)!;
+                let newStateInterfaceStatement = ts.updateInterfaceDeclaration(
+                    stateInterfaceStatement,
+                    stateInterfaceStatement.decorators,
+                    stateInterfaceStatement.modifiers,
+                    stateInterfaceStatement.name,
+                    stateInterfaceStatement.typeParameters,
+                    stateInterfaceStatement.heritageClauses,
+                    states,
+                );
+                statements = helpers.replaceItem(statements, stateInterfaceStatement, newStateInterfaceStatement);
 
-    if((states as ts.TypeLiteralNode).members.length==0 && customExtend){
-        statesInterfaceDeclaration =  ts.createTypeAliasDeclaration([], [], stateTypeName, [], ts.createTypeReferenceNode('States',[]));
-    }
-
-    const propTypeRef = ts.createTypeReferenceNode(propTypeName, []);
-    const stateTypeRef = ts.createTypeReferenceNode(stateTypeName, []);
-
-    let newClassDeclaration = getNewReactClassDeclaration(
-        classDeclaration,
-        shouldMakePropTypeDeclaration ? propTypeRef : ts.createTypeLiteralNode([]),
-        shouldMakeStateTypeDeclaration ? stateTypeRef : ts.createTypeLiteralNode([]),
-    );
-
-    const allTypeDeclarations = [];
-    if (shouldMakePropTypeDeclaration) allTypeDeclarations.push(propsInterfaceDeclaration);
-    if (shouldMakeStateTypeDeclaration) allTypeDeclarations.push(statesInterfaceDeclaration);
-
-    let statements = helpers.insertBefore(sourceFile.statements, classDeclaration, allTypeDeclarations);
-    statements = helpers.replaceItem(statements, classDeclaration, newClassDeclaration);
-
-    if(customExtend){
-        const importDeclarations = statements.filter(statement=>{
-            return  ts.isImportDeclaration(statement) && statement.importClause && statement.importClause.name && ts.isIdentifier(statement.importClause.name) && statement.importClause.name.text===extendFrom;
-        }).forEach(statement =>{
-            const importDeclaration = statement as ts.ImportDeclaration;
-            if(importDeclaration.importClause) {
-
-                let added =   [
-                    ts.createImportSpecifier(undefined, ts.createIdentifier('Props')),
-                    ts.createImportSpecifier(undefined, ts.createIdentifier('States'))
-                ];
-
-               if(importDeclaration.importClause.namedBindings &&  ts.isNamedImports(importDeclaration.importClause.namedBindings)){
-                   // importDeclaration.importClause.namedBindings.element
-                   importDeclaration.importClause.namedBindings.elements.forEach(value => {
-                       added.push(value);
-                   })
-               }
-                const importClause = ts.updateImportClause(
-                    importDeclaration.importClause,
-                    importDeclaration.importClause.name,
-                    ts.createNamedImports( added)
+                const propTypeRef = ts.createTypeReferenceNode(propTypeName, []);
+                const stateTypeRef = ts.createTypeReferenceNode(stateTypeName, []);
+                let newClassDeclaration = getNewReactClassDeclaration(
+                    classDeclaration,
+                    propTypeRef,
+                    stateTypeRef,
                 );
 
-
-                const newImportDeclaration = ts.updateImportDeclaration(importDeclaration,
-                    importDeclaration.decorators,
-                    importDeclaration.modifiers,
-                    importClause,
-                    importDeclaration.moduleSpecifier);
-                statements = helpers.replaceItem(statements, statement, newImportDeclaration);
+                statements = helpers.replaceItem(statements, classDeclaration, newClassDeclaration);
+                return ts.updateSourceFileNode(sourceFile, ts.createNodeArray(statements));
             }
-        });
-    }
-    return ts.updateSourceFileNode(sourceFile, statements);
-}
 
-function getNewReactClassDeclaration(
-    classDeclaration: ts.ClassDeclaration,
-    propTypeRef: ts.TypeNode,
-    stateTypeRef: ts.TypeNode,
-) {
-    if (!classDeclaration.heritageClauses || !classDeclaration.heritageClauses.length) {
-        return classDeclaration;
-    }
+            function getNewReactClassDeclaration(
+                classDeclaration: ts.ClassDeclaration,
+                propTypeRef: ts.TypeNode,
+                stateTypeRef: ts.TypeNode,
+            ) {
+                if (!classDeclaration.heritageClauses || !classDeclaration.heritageClauses.length) {
+                    return classDeclaration;
+                }
 
-    const firstHeritageClause = classDeclaration.heritageClauses[0];
+                const firstHeritageClause = classDeclaration.heritageClauses[0];
 
-    const newFirstHeritageClauseTypes = helpers.replaceItem(
-        firstHeritageClause.types,
-        firstHeritageClause.types[0],
-        ts.updateExpressionWithTypeArguments(
-            firstHeritageClause.types[0],
-            [propTypeRef, stateTypeRef],
-            firstHeritageClause.types[0].expression,
-        ),
-    );
+                const newFirstHeritageClauseTypes = helpers.replaceItem(
+                    firstHeritageClause.types,
+                    firstHeritageClause.types[0],
+                    ts.updateExpressionWithTypeArguments(
+                        firstHeritageClause.types[0],
+                        [propTypeRef, stateTypeRef],
+                        firstHeritageClause.types[0].expression,
+                    ),
+                );
 
-    const newHeritageClauses = helpers.replaceItem(
-        classDeclaration.heritageClauses,
-        firstHeritageClause,
-        ts.updateHeritageClause(firstHeritageClause, newFirstHeritageClauseTypes),
-    );
+                const newHeritageClauses = helpers.replaceItem(
+                    classDeclaration.heritageClauses,
+                    firstHeritageClause,
+                    ts.updateHeritageClause(firstHeritageClause, newFirstHeritageClauseTypes),
+                );
 
-    return ts.updateClassDeclaration(
-        classDeclaration,
-        classDeclaration.decorators,
-        classDeclaration.modifiers,
-        classDeclaration.name,
-        classDeclaration.typeParameters,
-        newHeritageClauses,
-        classDeclaration.members,
-    );
-}
+                return ts.updateClassDeclaration(
+                    classDeclaration,
+                    classDeclaration.decorators,
+                    classDeclaration.modifiers,
+                    classDeclaration.name,
+                    classDeclaration.typeParameters,
+                    newHeritageClauses,
+                    classDeclaration.members,
+                );
+            }
 
-/**
- * 如果定义了 defaultProps, 并且propTypes对应的key为可选，修复key为必选
- * before=>
-static propTypes = {
+            /**
+             * 如果定义了 defaultProps, 并且propTypes对应的key为可选，修复key为必选
+             * before=>
+             static propTypes = {
         productName: PropTypes.string,
     }
 
- static defaultProps  = {
+             static defaultProps  = {
         productName: 'defaultValue',
     }
 
- after =>
- interface TestComponentProps {
+             after =>
+             interface TestComponentProps {
     productName: string;
 }
 
- * @param typeLiteralNode
- * @param defaultPropsKeys
- */
-function fixPropsInterface(typeLiteralNode:ts.TypeLiteralNode, defaultPropsKeys: Array<string>): ts.TypeLiteralNode {
-    typeLiteralNode.members.forEach(member =>{
-        if(member.name && ts.isIdentifier(member.name) && defaultPropsKeys.indexOf(member.name.text)>=0) {
-            member.questionToken = undefined;
-        }
-    });
-    return typeLiteralNode;
-}
-
-function getPropsTypeOfReactComponentClass(
-    classDeclaration: ts.ClassDeclaration,
-    sourceFile: ts.SourceFile,
-): ts.TypeLiteralNode {
-    const staticPropTypesMember = _.find(classDeclaration.members, member => {
-        return (
-            ts.isPropertyDeclaration(member) &&
-            helpers.hasStaticModifier(member) &&
-            helpers.isPropTypesMember(member, sourceFile)
-        );
-    });
-
-    const defaultPropsKeys = helpers.getDefaultPropsByClass(classDeclaration);
-    if (
-        staticPropTypesMember !== undefined &&
-        ts.isPropertyDeclaration(staticPropTypesMember) && // check to satisfy type checker
-        staticPropTypesMember.initializer &&
-        ts.isObjectLiteralExpression(staticPropTypesMember.initializer)
-    ) {
-        return fixPropsInterface(helpers.buildInterfaceFromPropTypeObjectLiteral(staticPropTypesMember.initializer),defaultPropsKeys);
-    }
-
-    const staticPropTypesGetterMember = _.find(classDeclaration.members, member => {
-        return (
-            ts.isGetAccessorDeclaration(member) &&
-            helpers.hasStaticModifier(member) &&
-            helpers.isPropTypesMember(member, sourceFile)
-        );
-    });
-
-    if (
-        staticPropTypesGetterMember !== undefined &&
-        ts.isGetAccessorDeclaration(staticPropTypesGetterMember) // check to satisfy typechecker
-    ) {
-        const returnStatement = _.find(staticPropTypesGetterMember.body!.statements, statement =>
-            ts.isReturnStatement(statement),
-        );
-        if (
-            returnStatement !== undefined &&
-            ts.isReturnStatement(returnStatement) && // check to satisfy typechecker
-            returnStatement.expression &&
-            ts.isObjectLiteralExpression(returnStatement.expression)
-        ) {
-            return  fixPropsInterface(helpers.buildInterfaceFromPropTypeObjectLiteral(returnStatement.expression),defaultPropsKeys);
-        }
-    }
-
-    return ts.createTypeLiteralNode([]);
-}
-
-function isThisState(n: ts.Node): n is ts.PropertyAccessExpression {
-   return helpers.isThisProperty(n, "state");
-}
-
-function isThisProps(n: ts.Node): n is ts.PropertyAccessExpression {
-    return helpers.isThisProperty(n, "props");
-}
-
-function getStatesOfReactComponentClass(
-    classDeclaration: ts.ClassDeclaration,
-    typeChecker: ts.TypeChecker,
-): ts.TypeNode {
-    const extendFrom = helpers.getComponentExtend(classDeclaration,typeChecker);
-    const members: ts.PropertySignature[] = [];
-    const addMember = (name: ts.Identifier, required: boolean = false) => {
-        const text = name ? name.text : '';
-        if (text && !members.find(m => (m.name as ts.Identifier).text === text)) {
-            const type = typeChecker.getTypeAtLocation(name);
-            let typeNode = typeChecker.typeToTypeNode(type);
-            const typeStr = typeChecker.typeToString(type);
-            if(["true","false"].includes(typeStr)){
-                typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
-            }else if(["undefined","null"].includes(typeStr)){
-                typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
-            }
-            const member = ts.createPropertySignature(
-                [],
-                text,
-                required ? undefined : ts.createToken(ts.SyntaxKind.QuestionToken),
-                typeNode,
-                undefined,
-            );
-            // console.log("add____"+text);
-            if(compilationOptions.react && !compilationOptions.react.stateNameValidator(extendFrom, text)){
-                return;
+             * @param typeLiteralNode
+             * @param defaultPropsKeys
+             */
+            function fixPropsInterface(typeLiteralNode: ts.TypeLiteralNode, defaultPropsKeys: Array<string>): ts.TypeLiteralNode {
+                const members = typeLiteralNode.members.map(member => {
+                    if (member.name && ts.isIdentifier(member.name) && defaultPropsKeys.indexOf(member.name.text) >= 0) {
+                        member.questionToken = undefined;
+                    }
+                    return member;
+                });
+                return ts.createTypeLiteralNode(members);
             }
 
-            members.push(member);
-        }
-    };
-
-    for (const member of classDeclaration.members) {
-        const node = [member];
-
-        // constructor this.state = {}
-        const initialState = helpers.filter<ts.ExpressionStatement>(node, n => {
-            return ts.isExpressionStatement(n) &&
-                ts.isBinaryExpression(n.expression) &&
-                ts.isObjectLiteralExpression(n.expression.right) &&
-                n.expression.left.getText().match(/this\.state/)
-                ? true
-                : false;
-        });
-
-        initialState.forEach(s => {
-            const expression = s.expression as ts.BinaryExpression;
-            const objectLiteral = expression.right as ts.ObjectLiteralExpression;
-            objectLiteral.properties.forEach((p: any) => {
-                addMember(p.name, true);
-            });
-        });
-
-        // constructor  Object.assing(this.state , {})
-        const objectAssignState = helpers.filter<ts.ExpressionStatement>(node, helpers.isObjectAssignState);
-        objectAssignState.forEach(s => {
-            const expression = s.expression as ts.CallExpression;
-            const objectLiteral = expression.arguments[1] as ts.ObjectLiteralExpression;
-            objectLiteral.properties.forEach((p: any) => {
-                addMember(p.name, true);
-            });
-        });
-
-        // argument of setState
-        const setStateArguments = helpers
-            .filter<ts.CallExpression>(node, n => {
-                return ts.isCallExpression(n) &&
-                    n.expression.getText().match(/\.setState/) &&
-                    n.arguments[0] &&
-                    ts.isObjectLiteralExpression(n.arguments[0])
-                    ? true
-                    : false;
-            })
-            .map(n => n.arguments[0] as ts.ObjectLiteralExpression);
-
-        setStateArguments.forEach(arg => {
-            arg.properties.forEach((p: any) => {
-                addMember(p.name, false);
-            });
-        });
-
-        // varaible declaration like const { a } = this.state
-        const variableDeclarations = helpers.filter<ts.VariableDeclaration>(node, n => {
-            return ts.isVariableDeclaration(n) &&
-                n.initializer &&
-                n.initializer.getText().match(/this\.state/) &&
-                n.name &&
-                (n.name as any).elements
-                ? true
-                : false;
-        });
-
-        variableDeclarations.forEach(v => {
-            (v.name as any).elements.forEach((el: any) => {
-                addMember(el.name, false);
-            });
-        });
-
-        // property access expresion like this.state.a
-        const propertyAccessExpressions = helpers.filter<ts.PropertyAccessExpression>(node, n => {
-            if(ts.isPropertyAccessExpression(n) && isThisState(n.expression)){
-                return true;
+            function getClassName(classDeclaration: ts.ClassDeclaration) {
+                if (classDeclaration && classDeclaration.name) {
+                    return classDeclaration.name.text;
+                }
+                return undefined;
             }
-            return false;
-        });
 
-        propertyAccessExpressions.forEach(p => {
-            addMember(p.name, false);
-        });
-    }
+            function getInterfaceStatement(interfaceName: string, sourceFile: ts.SourceFile): ts.InterfaceDeclaration | undefined {
+                let interfaceStatement: ts.InterfaceDeclaration | undefined = undefined;
+                sourceFile.statements.forEach(statement => {
+                    if (ts.isInterfaceDeclaration(statement) && statement.name && statement.name.text === interfaceName) {
+                        interfaceStatement = statement;
+                    }
+                });
+                return interfaceStatement;
+            }
 
-    return ts.createTypeLiteralNode(members);
-}
+            function getProperties(interfaceName: string, sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker): Array<string> {
+                const array = new Array<string>();
+                const statement = getInterfaceStatement(interfaceName, sourceFile);
+                if (statement && ts.isInterfaceDeclaration(statement)) {
+                    typeChecker.getTypeAtLocation(statement).getProperties().forEach(member => {
+                        array.push(member.name);
+                    })
+                }
+                return array;
+            }
 
-function isStateMemberEmpty(stateType: ts.TypeNode): boolean {
-    // Only need to handle TypeLiteralNode & IntersectionTypeNode
-    if (ts.isTypeLiteralNode(stateType)) {
-        return stateType.members.length === 0;
-    }
+            function getPropsTypeOfReactComponentClass(
+                classDeclaration: ts.ClassDeclaration,
+                sourceFile: ts.SourceFile,
+            ): ts.TypeLiteralNode {
+                const staticPropTypesMember = _.find(classDeclaration.members, member => {
+                    return (
+                        ts.isPropertyDeclaration(member) &&
+                        helpers.hasStaticModifier(member) &&
+                        helpers.isPropTypesMember(member, sourceFile)
+                    );
+                });
+                const defaultPropsKeys = helpers.getDefaultPropsByClass(classDeclaration);
+                if (
+                    staticPropTypesMember !== undefined &&
+                    ts.isPropertyDeclaration(staticPropTypesMember) && // check to satisfy type checker
+                    staticPropTypesMember.initializer &&
+                    ts.isObjectLiteralExpression(staticPropTypesMember.initializer)
+                ) {
+                    return fixPropsInterface(helpers.buildInterfaceFromPropTypeObjectLiteral(staticPropTypesMember.initializer), defaultPropsKeys);
+                }
 
-    if (!ts.isIntersectionTypeNode(stateType)) {
-        return true;
-    }
+                const staticPropTypesGetterMember = _.find(classDeclaration.members, member => {
+                    return (
+                        ts.isGetAccessorDeclaration(member) &&
+                        helpers.hasStaticModifier(member) &&
+                        helpers.isPropTypesMember(member, sourceFile)
+                    );
+                });
 
-    return stateType.types.every(isStateMemberEmpty);
-}
+                if (
+                    staticPropTypesGetterMember !== undefined &&
+                    ts.isGetAccessorDeclaration(staticPropTypesGetterMember) // check to satisfy typechecker
+                ) {
+                    const returnStatement = _.find(staticPropTypesGetterMember.body!.statements, statement =>
+                        ts.isReturnStatement(statement),
+                    );
+                    if (
+                        returnStatement !== undefined &&
+                        ts.isReturnStatement(returnStatement) && // check to satisfy typechecker
+                        returnStatement.expression &&
+                        ts.isObjectLiteralExpression(returnStatement.expression)
+                    ) {
+                        return fixPropsInterface(helpers.buildInterfaceFromPropTypeObjectLiteral(returnStatement.expression), defaultPropsKeys);
+                    }
+                }
 
-/**
- * interface extends React.HTMLAttributes<Element>
- */
-function createInterfaceHeritageClause() {
-    const expression = ts.createIdentifier('Props');
-    // const typeReference = ts.createTypeReferenceNode('Element', []);
-    const expressionWithTypeArguments = ts.createExpressionWithTypeArguments(undefined, expression);
-    return ts.createHeritageClause(ts.SyntaxKind.ExtendsKeyword, [expressionWithTypeArguments]);
-}
+                return ts.createTypeLiteralNode([]);
+            }
 
-function createStatesHeritageClause() {
-    const expression = ts.createIdentifier('States');
-    // const typeReference = ts.createTypeReferenceNode('Element', []);
-    const expressionWithTypeArguments = ts.createExpressionWithTypeArguments(undefined, expression);
-    return ts.createHeritageClause(ts.SyntaxKind.ExtendsKeyword, [expressionWithTypeArguments]);
-}
+            function isThisState(n: ts.Node): n is ts.PropertyAccessExpression {
+                return helpers.isThisProperty(n, "state");
+            }
 
-function getPropsOfReactComponentClass(
-    classDeclaration: ts.ClassDeclaration,
-    sourceFile: ts.SourceFile,
-): ts.PropertySignature[] {
-    const names: string[] = [];
+            function isThisProps(n: ts.Node): n is ts.PropertyAccessExpression {
+                return helpers.isThisProperty(n, "props");
+            }
 
-    const variableDeclarations = helpers.filter<ts.VariableDeclaration>(classDeclaration.members, node => {
-        return ts.isVariableDeclaration(node) && node.initializer && node.initializer.getText() === 'this.props'
-            ? true
-            : false;
-    });
+            function getStatesOfReactComponentClass(
+                classDeclaration: ts.ClassDeclaration,
+                typeChecker: ts.TypeChecker,
+                superStateMembers: Array<string>
+            ) {
+                const extendFrom = helpers.getComponentExtend(classDeclaration, typeChecker);
+                const members: ts.PropertySignature[] = [];
+                const addMember = (name: ts.Identifier, required: boolean = false) => {
+                    const text = name ? name.text : '';
+                    if (text && !members.find(m => (m.name as ts.Identifier).text === text) && !superStateMembers.includes(text)) {
+                        const type = typeChecker.getTypeAtLocation(name);
+                        let typeNode = typeChecker.typeToTypeNode(type);
+                        const typeStr = typeChecker.typeToString(type);
+                        if (["true", "false"].includes(typeStr)) {
+                            typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
+                        } else if (["undefined", "null"].includes(typeStr)) {
+                            typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+                        }
+                        const member = ts.createPropertySignature(
+                            [],
+                            text,
+                            required ? undefined : ts.createToken(ts.SyntaxKind.QuestionToken),
+                            typeNode,
+                            undefined,
+                        );
+                        // if(compilationOptions.react && !compilationOptions.react.stateNameValidator(extendFrom, text)){
+                        //     return;
+                        // }
 
-    variableDeclarations.forEach(node => {
-        if ((node.name as any).elements) {
-            (node.name as any).elements.forEach((el: ts.BindingElement) => {
-                const name = (el.propertyName || el.name) as ts.Identifier;
-                names.push(name.text);
-            });
+                        members.push(member);
+                    }
+                };
+
+                for (const member of classDeclaration.members) {
+                    const node = [member];
+
+                    // constructor this.state = {}
+                    const initialState = helpers.filter<ts.ExpressionStatement>(node, n => {
+                        return ts.isExpressionStatement(n) &&
+                        ts.isBinaryExpression(n.expression) &&
+                        ts.isObjectLiteralExpression(n.expression.right) &&
+                        n.expression.left.getText().match(/this\.state/)
+                            ? true
+                            : false;
+                    });
+
+                    initialState.forEach(s => {
+                        const expression = s.expression as ts.BinaryExpression;
+                        const objectLiteral = expression.right as ts.ObjectLiteralExpression;
+                        objectLiteral.properties.forEach((p) => {
+                            if (ts.isPropertyAccessExpression(p)) {
+                                addMember(p.name, true);
+                            }
+                        });
+                    });
+
+                    // constructor  Object.assing(this.state , {})
+                    const objectAssignState = helpers.filter<ts.ExpressionStatement>(node, helpers.isObjectAssignState);
+                    objectAssignState.forEach(s => {
+                        console.log("found assign state...");
+                        const expression = s.expression as ts.CallExpression;
+                        const objectLiteral = expression.arguments[1] as ts.ObjectLiteralExpression;
+                        objectLiteral.properties.forEach((p) => {
+                            if (ts.isPropertyAssignment(p) && ts.isIdentifier(p.name)) {
+                                addMember(p.name, true);
+                            }
+                        });
+                    });
+
+                    // argument of setState
+                    const setStateArguments = helpers
+                        .filter<ts.CallExpression>(node, n => {
+                            return ts.isCallExpression(n) &&
+                            n.expression.getText().match(/\.setState/) &&
+                            n.arguments[0] &&
+                            ts.isObjectLiteralExpression(n.arguments[0])
+                                ? true
+                                : false;
+                        })
+                        .map(n => n.arguments[0] as ts.ObjectLiteralExpression);
+
+                    setStateArguments.forEach(arg => {
+                        arg.properties.forEach((p: any) => {
+                            addMember(p.name, false);
+                        });
+                    });
+
+                    // varaible declaration like const { a } = this.state
+                    const variableDeclarations = helpers.filter<ts.VariableDeclaration>(node, n => {
+                        return ts.isVariableDeclaration(n) &&
+                        n.initializer &&
+                        n.initializer.getText().match(/this\.state/) &&
+                        n.name &&
+                        (n.name as any).elements
+                            ? true
+                            : false;
+                    });
+
+                    variableDeclarations.forEach(v => {
+                        (v.name as any).elements.forEach((el: any) => {
+                            addMember(el.name, false);
+                        });
+                    });
+
+                    // property access expresion like this.state.a
+                    const propertyAccessExpressions = helpers.filter<ts.PropertyAccessExpression>(node, n => {
+                        if (ts.isPropertyAccessExpression(n) && isThisState(n.expression)) {
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    propertyAccessExpressions.forEach(p => {
+                        addMember(p.name, false);
+                    });
+                }
+
+                return members;
+            }
+
+            function isStateMemberEmpty(stateType: ts.TypeNode): boolean {
+                // Only need to handle TypeLiteralNode & IntersectionTypeNode
+                if (ts.isTypeLiteralNode(stateType)) {
+                    return stateType.members.length === 0;
+                }
+
+                if (!ts.isIntersectionTypeNode(stateType)) {
+                    return true;
+                }
+
+                return stateType.types.every(isStateMemberEmpty);
+            }
+
+            function getPropsOfReactComponentClass(
+                classDeclaration: ts.ClassDeclaration,
+                sourceFile: ts.SourceFile,
+            ): ts.PropertySignature[] {
+                const names: string[] = [];
+
+                const variableDeclarations = helpers.filter<ts.VariableDeclaration>(classDeclaration.members, node => {
+                    return ts.isVariableDeclaration(node) && node.initializer && node.initializer.getText() === 'this.props'
+                        ? true
+                        : false;
+                });
+
+                variableDeclarations.forEach(node => {
+                    if ((node.name as any).elements) {
+                        (node.name as any).elements.forEach((el: ts.BindingElement) => {
+                            const name = (el.propertyName || el.name) as ts.Identifier;
+                            names.push(name.text);
+                        });
+                    }
+                });
+
+                const propertyAccessExpressions: ts.PropertyAccessExpression[] = [];
+
+                function visitEach(node: ts.Node) {
+                    if (ts.isPropertyAccessExpression(node) && isThisProps(node.expression)) {
+                        propertyAccessExpressions.push(node);
+                    } else {
+                        ts.forEachChild(node, visitEach);
+                    }
+                }
+
+                ts.forEachChild(classDeclaration, visitEach);
+
+                propertyAccessExpressions.forEach(node => {
+                    names.push(node.name.text);
+                });
+
+                const propsSignatures = names
+                    .filter(name => name !== 'children')
+                    .map(name => {
+                        return ts.createPropertySignature(
+                            [],
+                            name,
+                            ts.createToken(ts.SyntaxKind.QuestionToken),
+                            ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+                            undefined,
+                        );
+                    });
+                return propsSignatures;
+            }
         }
-    });
+}
 
-    const propertyAccessExpressions: ts.PropertyAccessExpression[] = [];
-    function visitEach(node: ts.Node) {
-        if(ts.isPropertyAccessExpression(node) && isThisProps(node.expression)){
-            propertyAccessExpressions.push(node);
-        }else{
-            ts.forEachChild(node, visitEach);
-        }
-    }
-    ts.forEachChild(classDeclaration, visitEach);
-
-    propertyAccessExpressions.forEach(node => {
-        names.push(node.name.text);
-    });
-
-    const propsSignatures = names
-        .filter(name => name !== 'children')
-        .map(name => {
-            return ts.createPropertySignature(
-                [],
-                name,
-                ts.createToken(ts.SyntaxKind.QuestionToken),
-                ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-                undefined,
-            );
-        });
-    return propsSignatures;
+export default {
+    recompile: false,
+    factory: reactJSMakePropsAndStateInterfaceTransformFactoryFactory,
 }

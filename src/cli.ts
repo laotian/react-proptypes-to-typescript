@@ -34,10 +34,9 @@ function resolveGlobs(globPatterns: string[]): string[] {
 program
     .version('1.0.0')
     .option('--remove-original-files', 'remove original files', false)
-    .option('--keep-temporary-files', 'Keep temporary files', false)
-    .option('--print', 'print output to console', false)
     .option('--check', 'check @ts-ignore error and module.exports error', false)
     .option('--rename','rename .js file extension name to .ts or .tsx',false)
+    .option('--relative-import <always|never>','import clause fix absolute path, remove prefix /, eg: import Abc from "/js/abc" => import Abc from "js/abc"','always')
     .option('--compile-config <string>','set compiler config file','compileConfig.js')
     .usage('[options] <filename or glob>')
     .command('* [glob/filename...]')
@@ -65,6 +64,10 @@ program
             if(!compilationOptions.classProperty!.customReferenceType){
                 compilationOptions.classProperty!.customReferenceType = DEFAULT_COMPILATION_OPTIONS.classProperty!.customReferenceType;
             }
+        }
+
+        if(program.relativeImport==='always'){
+            compilationOptions.fixImportAbsolutePath = true;
         }
 
         const files = resolveGlobs(globPatterns);
@@ -110,24 +113,19 @@ program
                 const temporaryPath = filePath + `_js2ts_${+new Date()}${extension}`;
                 try {
                     fs.copyFileSync(filePath, temporaryPath);
-                    const result = run(temporaryPath, compilationOptions);
-                    if (program.print) {
-                        console.log('result:\n', result);
-                    }
+                    run(temporaryPath, compilationOptions);
                     if (program.removeOriginalFiles) {
                         fs.unlinkSync(filePath);
                     }
-                    fs.writeFileSync(newPath, result);
+                    fs.renameSync(temporaryPath, newPath);
                 } catch (error) {
                     console.warn(`Failed to convert ${filePath}`);
                     console.warn(error);
                     errors = true;
                 }
-                if (!program.keepTemporaryFiles) {
-                    if (fs.existsSync(temporaryPath)) {
-                        fs.unlinkSync(temporaryPath);
-                    }
-                }
+                // if (fs.existsSync(temporaryPath)) {
+                //     fs.unlinkSync(temporaryPath);
+                // }
             }
         }
         if (errors) {
