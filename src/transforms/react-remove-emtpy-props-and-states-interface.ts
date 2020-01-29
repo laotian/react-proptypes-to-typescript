@@ -64,10 +64,6 @@ function reactRemoveEmptyPropsAndStatesInterfaceTransformFactoryFactory(typeChec
                     statements = ts.createNodeArray(statements.filter(statement => !emptyInterfaces.includes(statement)));
                 });
 
-                // const visited = ts.updateSourceFileNode(
-                //     sourceFile,
-                //     sourceFile.statements.filter(s => !helpers.isReactPropTypeAssignmentStatement(s)),
-                // );
                 const visited = ts.updateSourceFileNode(
                     sourceFile,
                     statements,

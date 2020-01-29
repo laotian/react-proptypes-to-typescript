@@ -262,13 +262,7 @@ function getStatesOfReactComponentClass(
         const text = name ? name.text : '';
         if (text && !members.find(m => (m.name as ts.Identifier).text === text) && !superStateMembers.includes(text)) {
             const type = typeChecker.getTypeAtLocation(name);
-            let typeNode = typeChecker.typeToTypeNode(type);
-            const typeStr = typeChecker.typeToString(type);
-            if (["true", "false"].includes(typeStr)) {
-                typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
-            } else if (["undefined", "null"].includes(typeStr)) {
-                typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
-            }
+            const typeNode = helpers.typeToTypeNode(type, typeChecker);
             const member = ts.createPropertySignature(
                 [],
                 text,
@@ -364,19 +358,6 @@ function getStatesOfReactComponentClass(
     }
 
     return members;
-}
-
-function isStateMemberEmpty(stateType: ts.TypeNode): boolean {
-    // Only need to handle TypeLiteralNode & IntersectionTypeNode
-    if (ts.isTypeLiteralNode(stateType)) {
-        return stateType.members.length === 0;
-    }
-
-    if (!ts.isIntersectionTypeNode(stateType)) {
-        return true;
-    }
-
-    return stateType.types.every(isStateMemberEmpty);
 }
 
 function getPropsOfReactComponentClass(

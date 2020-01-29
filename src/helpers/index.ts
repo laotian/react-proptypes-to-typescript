@@ -334,4 +334,25 @@ function walk(statements: ts.Node[] | ts.NodeArray<ts.Node> = [], callback: (nod
     }
 }
 
+export function typeToTypeNode(type: ts.Type, typeChecker: ts.TypeChecker)  {
+    const typeString = typeChecker.typeToString(type);
+    let typeNode;
+    if (typeString === 'ReactNode') {
+        typeNode = ts.createTypeReferenceNode('React.ReactNode', []);
+    } else if (typeString === 'undefined[]') {
+        typeNode = ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
+    } else if (typeString === 'false' || typeString === 'true') {
+        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
+    } else if (typeString === 'Timer' || (type && type.flags === ts.TypeFlags.NumberLiteral)) {
+        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
+    } else if (typeString.match(/"\w{0,}"/)) {
+        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
+    } else if(["undefined", "null", "{}"].includes(typeString)){
+        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+    } else {
+        typeNode = typeChecker.typeToTypeNode(type);
+    }
+    return typeNode;
+}
+
 export type TransformFactoryAndRecompile =   ts.TransformerFactory<ts.SourceFile>

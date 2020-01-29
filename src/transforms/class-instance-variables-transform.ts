@@ -83,7 +83,6 @@ function getInstancePropertiesFromClassStatement(
             let isRequired = expression.getStart()>=constructorStartIndex && expression.getEnd()<=constructorEndIndex;
             const propertyName = expression.left.name.text;
             let   type = typeChecker.getTypeAtLocation(expression.right);
-            let referenceType = '';
             //this._onComplete.bind(this);
             if(ts.isCallExpression(expression.right)){
                 const callText = expression.right.getText();
@@ -96,23 +95,7 @@ function getInstancePropertiesFromClassStatement(
             if (!memberNames.includes(propertyName) &&
                 !propertyDeclarations.find(p => (p.name as ts.Identifier).text === propertyName)
             ) {
-                const typeString = typeChecker.typeToString(type);
-                let typeNode:ts.TypeNode | undefined = undefined;
-                if(referenceType){
-                    typeNode = ts.createTypeReferenceNode(referenceType, []);
-                }else if (typeString === 'ReactNode') {
-                    typeNode = ts.createTypeReferenceNode('React.ReactNode', []);
-                } else if (typeString === 'undefined[]') {
-                    typeNode = ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
-                } else if (typeString === 'false' || typeString === 'true') {
-                    typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
-                } else if (typeString === 'Timer' || (type && type.flags === ts.TypeFlags.NumberLiteral)) {
-                    typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
-                } else if (typeString.match(/"\w{0,}"/)) {
-                    typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
-                } else {
-                    typeNode = typeChecker.typeToTypeNode(type);
-                }
+                const typeNode = helpers.typeToTypeNode(type, typeChecker);
                 if(typeNode){
                     if(typeNode.kind==ts.SyntaxKind.AnyKeyword){
                         isRequired = true;
