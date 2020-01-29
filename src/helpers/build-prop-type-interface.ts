@@ -117,7 +117,23 @@ export function getTypeFromReactPropTypeExpression(node: ts.Expression): ts.Type
         } else if (/number/.test(text)) {
             result = ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
         } else if (/object/.test(text)) {
-            result = ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword);
+            // result = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+            result = ts.createTypeLiteralNode([
+                ts.createIndexSignature(
+                    undefined,
+                    undefined,
+                    [
+                        ts.createParameter(
+                            undefined,
+                            undefined,
+                            undefined,
+                            'key',
+                            undefined,
+                            ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+                        ),
+                    ],
+                    ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+                )]);
         } else if (/node/.test(text)) {
             result = ts.createTypeReferenceNode('React.ReactNode', []);
         } else if (/element/.test(text)) {
