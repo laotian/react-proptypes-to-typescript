@@ -49,6 +49,40 @@ function visitSourceFile(sourceFile: ts.SourceFile, typeChecker: ts.TypeChecker)
     return sourceFile;
 }
 
+// 获取 ref 回调中定义的 成员变量，如  textInput
+// <TextInput ref={(textInput) => { this.textInput = textInput; }}
+function getRefNames(statement: ts.ClassExpression | ts.ClassDeclaration, typeChecker: ts.TypeChecker) {
+    const propertyNames = new Array<string>();
+    if((ts.isClassDeclaration(statement) || ts.isClassExpression(statement)) && helpers.isReactComponent(statement,typeChecker)) {
+        helpers.filter<ts.JsxAttribute>(statement.members, node => {
+            return ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && node.name.text === 'ref'
+        }).forEach(refAttributes => {
+            if (refAttributes.initializer
+                && ts.isJsxExpression(refAttributes.initializer)
+                && refAttributes.initializer.expression
+                && ts.isArrowFunction(refAttributes.initializer.expression)
+                && refAttributes.initializer.expression.parameters.length === 1
+                && ts.isParameter(refAttributes.initializer.expression.parameters[0])
+                && ts.isIdentifier(refAttributes.initializer.expression.parameters[0].name)) {
+                const refName = refAttributes.initializer.expression.parameters[0].name.text;
+                if (ts.isBlock(refAttributes.initializer.expression.body)) {
+                    helpers.filter<ts.BinaryExpression>(refAttributes.initializer.expression.body.statements, ts.isBinaryExpression)
+                        .filter(be => be.operatorToken.kind == ts.SyntaxKind.EqualsToken && ts.isIdentifier(be.right) && be.right.text === refName)
+                        .map(be=>be.left)
+                        .forEach(n => {
+                            if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.name) && n.expression.kind == ts.SyntaxKind.ThisKeyword) {
+                                const propertyName = n.name.text;
+                                propertyNames.push(propertyName);
+                            }
+                        })
+                }
+            }
+        });
+    }
+    return propertyNames;
+}
+
+
 /**
  * Get properties within constructor
  * @param classStatement
@@ -60,8 +94,7 @@ function getInstancePropertiesFromClassStatement(
     sourceFile: ts.SourceFile,
 ): Array<ts.PropertyDeclaration> {
     const propertyDeclarations: Array<ts.PropertyDeclaration> = [];
-    const memberTypes = new Map<string,ts.Type>();
-
+    const propertyRefNames = getRefNames(classStatement, typeChecker);
     let constructorStartIndex = -1;
     let constructorEndIndex = -1;
     classStatement.members.forEach(member => {
@@ -95,7 +128,11 @@ function getInstancePropertiesFromClassStatement(
             if (!memberNames.includes(propertyName) &&
                 !propertyDeclarations.find(p => (p.name as ts.Identifier).text === propertyName)
             ) {
-                const typeNode = helpers.typeToTypeNode(type, typeChecker);
+                let  typeNode = helpers.typeToTypeNode(type, typeChecker);
+                if(typeNode && ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName) && propertyRefNames.includes(propertyName)){
+                    // 如果是 ref 成员变量，需要添加额外的null, 如 private textInput?: TextInput | null;
+                    typeNode = ts.createUnionOrIntersectionTypeNode(ts.SyntaxKind.UnionType, [typeNode, ts.createKeywordTypeNode(ts.SyntaxKind.NullKeyword)]);
+                }
                 if(typeNode){
                     if(typeNode.kind==ts.SyntaxKind.AnyKeyword){
                         isRequired = true;
