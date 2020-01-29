@@ -14,6 +14,7 @@ import objectVariableTransformFactoryFactory from './transforms/object-variable-
 import onResponseTransformFactoryFactory from './transforms/on-response-transform';
 import objectAssignStateFactoryFactory from './transforms/object-assign-state-transform';
 import importPropsStatesTransformFactoryFactory from './transforms/import-props-states-transform';
+import reactRemoveEmptyPropsAndStatesInterfaceTransformFactoryFactory from './transforms/react-remove-emtpy-props-and-states-interface';
 
 export {
     reactMovePropTypesToClassTransformFactoryFactory,
@@ -42,6 +43,7 @@ export const allTransforms = [
     objectVariableTransformFactoryFactory,
     onResponseTransformFactoryFactory,
     objectAssignStateFactoryFactory,
+    reactRemoveEmptyPropsAndStatesInterfaceTransformFactoryFactory
 ];
 
 export type TransformFactoryFactory = {recompile: boolean, factory:  (typeChecker: ts.TypeChecker, compilationOptions: CompilationOptions) =>  ts.TransformerFactory<ts.SourceFile>};
