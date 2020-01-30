@@ -345,7 +345,7 @@ export function typeToTypeNode(type: ts.Type, typeChecker: ts.TypeChecker)  {
         typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
     } else if (typeString === 'Timer' || (type && type.flags === ts.TypeFlags.NumberLiteral)) {
         typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
-    } else if (typeString.match(/"\w{0,}"/)) {
+    } else if (type && type.flags == ts.TypeFlags.StringLiteral) {
         typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
     } else if(["undefined", "null", "{}"].includes(typeString)){
         typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
