@@ -337,7 +337,9 @@ function walk(statements: ts.Node[] | ts.NodeArray<ts.Node> = [], callback: (nod
 export function typeToTypeNode(type: ts.Type, typeChecker: ts.TypeChecker)  {
     const typeString = typeChecker.typeToString(type);
     let typeNode;
-    if (typeString === 'ReactNode') {
+    if (typeString === 'Element') {
+        typeNode = ts.createTypeReferenceNode('React.ReactElement', []);
+    } else if (typeString === 'ReactNode') {
         typeNode = ts.createTypeReferenceNode('React.ReactNode', []);
     } else if (typeString === 'undefined[]') {
         typeNode = ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
