@@ -3,7 +3,7 @@ import * as helpers from '../helpers';
 import { CompilationOptions } from '../compiler';
 
 // todo 支持配置黑名单类型或传入检验function
-const blackListTypes = ["XML","xml"];
+const blackListTypes = ["XML","xml","*"];
 
 function isValidType(typeNode?: ts.TypeNode) {
     if(typeNode && !blackListTypes.includes(typeNode.getText())){

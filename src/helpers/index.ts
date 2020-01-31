@@ -334,27 +334,66 @@ function walk(statements: ts.Node[] | ts.NodeArray<ts.Node> = [], callback: (nod
     }
 }
 
-export function typeToTypeNode(type: ts.Type, typeChecker: ts.TypeChecker)  {
-    const typeString = typeChecker.typeToString(type);
-    let typeNode;
-    if (typeString === 'Element') {
-        typeNode = ts.createTypeReferenceNode('React.ReactElement', []);
-    } else if (typeString === 'ReactNode') {
-        typeNode = ts.createTypeReferenceNode('React.ReactNode', []);
-    } else if (typeString === 'undefined[]') {
-        typeNode = ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
-    } else if (typeString === 'false' || typeString === 'true') {
-        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
-    } else if (typeString === 'Timer' || (type && type.flags === ts.TypeFlags.NumberLiteral)) {
-        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
-    } else if (type && type.flags == ts.TypeFlags.StringLiteral) {
-        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
-    } else if(["undefined", "null", "{}"].includes(typeString)){
+export function fixTypeNode(typeNode: ts.TypeNode, typeChecker: ts.TypeChecker) : ts.TypeNode {
+    if(ts.isArrayTypeNode(typeNode)){
+        return ts.createArrayTypeNode(fixTypeNode(typeNode.elementType, typeChecker));
+    }
+    if(ts.isFunctionTypeNode(typeNode)){
+        typeNode.type = fixTypeNode(typeNode.type, typeChecker);
+        return typeNode;
+    }
+    if(ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)){
+        const typeName = typeNode.typeName.text;
+        if(typeName==='Element'){
+           typeNode = ts.createTypeReferenceNode('React.ReactElement', []);
+        }else if (typeName === 'ReactNode') {
+            typeNode = ts.createTypeReferenceNode('React.ReactNode', []);
+        }else if(typeName === 'Timeout'){
+            typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
+        }
+        return  typeNode;
+    }
+
+    if(ts.isTypeLiteralNode(typeNode) && typeNode.members.length===0){
+        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword);
+    }else if(ts.isLiteralTypeNode(typeNode)){
+        if(ts.isStringLiteral(typeNode.literal)){
+            typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
+        }else if(ts.isNumericLiteral(typeNode.literal)){
+            typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
+        }
+    }else if([ts.SyntaxKind.UndefinedKeyword, ts.SyntaxKind.NullKeyword].includes(typeNode.kind)){
         typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
-    } else {
-        typeNode = typeChecker.typeToTypeNode(type);
+    }else  if([ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword].includes(typeNode.kind)){
+        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
     }
     return typeNode;
 }
+
+
+export function typeToTypeNode(type: ts.Type, typeChecker: ts.TypeChecker)  {
+    const typeNode = typeChecker.typeToTypeNode(type);
+    if(!typeNode) return typeNode;
+    return fixTypeNode(typeNode, typeChecker);
+}
+
+
+export function walkEachNode(node:ts.Node, processor: (node:ts.Node)=>void) {
+    node.forEachChild(node1 => {
+        processor(node1);
+        walkEachNode(node1,processor);
+    })
+}
+
+export function filterEachNode<T extends ts.Node>(node: ts.Node, filter: (node:ts.Node)=>boolean): Array<T> {
+    let array = new Array<T>();
+    walkEachNode(node,target=>{
+        if(filter(target)){
+            array.push(target as T);
+        }
+    });
+    return array;
+}
+
 
 export type TransformFactoryAndRecompile =   ts.TransformerFactory<ts.SourceFile>

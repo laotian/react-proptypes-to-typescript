@@ -65,8 +65,8 @@ function getRefNames(statement: ts.ClassExpression | ts.ClassDeclaration, typeCh
                 && ts.isParameter(refAttributes.initializer.expression.parameters[0])
                 && ts.isIdentifier(refAttributes.initializer.expression.parameters[0].name)) {
                 const refName = refAttributes.initializer.expression.parameters[0].name.text;
-                if (ts.isBlock(refAttributes.initializer.expression.body)) {
-                    helpers.filter<ts.BinaryExpression>(refAttributes.initializer.expression.body.statements, ts.isBinaryExpression)
+
+                helpers.filterEachNode<ts.BinaryExpression>(refAttributes.initializer.expression.body, ts.isBinaryExpression)
                         .filter(be => be.operatorToken.kind == ts.SyntaxKind.EqualsToken && ts.isIdentifier(be.right) && be.right.text === refName)
                         .map(be=>be.left)
                         .forEach(n => {
@@ -74,8 +74,7 @@ function getRefNames(statement: ts.ClassExpression | ts.ClassDeclaration, typeCh
                                 const propertyName = n.name.text;
                                 propertyNames.push(propertyName);
                             }
-                        })
-                }
+                        });
             }
         });
     }
