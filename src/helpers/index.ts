@@ -355,7 +355,23 @@ export function fixTypeNode(typeNode: ts.TypeNode, typeChecker: ts.TypeChecker) 
     }
 
     if(ts.isTypeLiteralNode(typeNode) && typeNode.members.length===0){
-        typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword);
+        //  this.obj = {}   =>   obj: {[key: string]: any}
+        typeNode = ts.createTypeLiteralNode([
+            ts.createIndexSignature(
+                undefined,
+                undefined,
+                [
+                    ts.createParameter(
+                        undefined,
+                        undefined,
+                        undefined,
+                        'key',
+                        undefined,
+                        ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+                    ),
+                ],
+                ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+            )]);
     }else if(ts.isLiteralTypeNode(typeNode)){
         if(ts.isStringLiteral(typeNode.literal)){
             typeNode = ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
