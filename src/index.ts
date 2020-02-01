@@ -15,6 +15,8 @@ import onResponseTransformFactoryFactory from './transforms/on-response-transfor
 import objectAssignStateFactoryFactory from './transforms/object-assign-state-transform';
 import importPropsStatesTransformFactoryFactory from './transforms/import-props-states-transform';
 import reactRemoveEmptyPropsAndStatesInterfaceTransformFactoryFactory from './transforms/react-remove-emtpy-props-and-states-interface';
+import reactMovePropsTrailingCommentsFactoryFactory   from './transforms/react-move-props-trailing-comments-transform';
+
 
 export {
     reactMovePropTypesToClassTransformFactoryFactory,
@@ -29,9 +31,10 @@ export {
 };
 
 export const allTransforms = [
+    reactMovePropTypesToClassTransformFactoryFactory,
+    reactMovePropsTrailingCommentsFactoryFactory,
     importAbsolutePathTransformFactoryFactory,
     importPropsStatesTransformFactoryFactory,
-    reactMovePropTypesToClassTransformFactoryFactory,
     reactJSMakePropsAndStateInterfaceTransformFactoryFactory,
     reactStatelessFunctionMakePropsTransformFactoryFactory,
     collapseIntersectionInterfacesTransformFactoryFactory,

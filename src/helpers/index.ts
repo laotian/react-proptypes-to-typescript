@@ -411,5 +411,66 @@ export function filterEachNode<T extends ts.Node>(node: ts.Node, filter: (node:t
     return array;
 }
 
+function commentTrim(comment: string, target: string = '/') {
+    if(!comment) return comment;
+    comment = comment.trimLeft();
+    while (comment.startsWith(target) && comment.length > 0) {
+        comment = comment.substring(target.length);
+    }
+    return comment;
+}
+
+export function copyLeadingComment(source: ts.Node, target: ts.Node) {
+    const sourceText = source.getSourceFile().text;
+    const ranges = ts.getLeadingCommentRanges(sourceText, source.getFullStart());
+    if (ranges) {
+        ranges.forEach(range => {
+            if (range.kind == ts.SyntaxKind.SingleLineCommentTrivia) {
+                let comment = commentTrim(sourceText.substring(range.pos, range.end));
+                if (comment) {
+                    ts.addSyntheticLeadingComment(target, ts.SyntaxKind.SingleLineCommentTrivia, comment);
+                }
+            }else if (range.kind == ts.SyntaxKind.MultiLineCommentTrivia) {
+                let comments = sourceText.substring(range.pos, range.end);
+                comments =  comments.split("\n").map((comment,index)=>{
+                    comment =commentTrim(comment,"/*");
+                    comment =comment.trimRight();
+                    if(comment.endsWith("*/")){
+                        comment = comment.substring(0, comment.length - 2);
+                    }
+                    comment =comment.trim();
+                    return comment;
+                }).join("\n");
+                if (comments) {
+                    ts.addSyntheticLeadingComment(target, ts.SyntaxKind.MultiLineCommentTrivia, comments, true);
+                }
+            }
+        })
+    }
+}
+
+export function copyTrailingComment(source: ts.Node, target: ts.Node, endPadding= 0, hasTrailingNewLine = false) {
+    const sourceText = source.getSourceFile().text;
+    const ranges = ts.getTrailingCommentRanges(sourceText, source.end + endPadding);
+    if (ranges) {
+        ranges.forEach(range => {
+            if (range.kind == ts.SyntaxKind.SingleLineCommentTrivia) {
+                let comment = commentTrim(sourceText.substring(range.pos, range.end));
+                if (comment) {
+                    ts.addSyntheticTrailingComment(target, ts.SyntaxKind.SingleLineCommentTrivia, comment, hasTrailingNewLine);
+                }
+            }
+        })
+    }
+}
+
+export function copyComment(source: ts.Node, target: ts.Node) {
+    copyLeadingComment(source, target);
+    copyTrailingComment(source,target);
+}
+
+
+
+
 
 export type TransformFactoryAndRecompile =   ts.TransformerFactory<ts.SourceFile>

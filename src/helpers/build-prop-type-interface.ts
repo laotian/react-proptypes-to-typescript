@@ -72,13 +72,15 @@ export function buildInterfaceFromPropTypeObjectLiteral(objectLiteral: ts.Object
                 : initializer;
             const typeValue = getTypeFromReactPropTypeExpression(typeExpression);
 
-            return ts.createPropertySignature(
+            const sig = ts.createPropertySignature(
                 [],
                 name,
                 isRequired ? undefined : ts.createToken(ts.SyntaxKind.QuestionToken),
                 typeValue,
                 undefined,
             );
+            helpers.copyComment(propertyAssignment, sig);
+            return sig;
         });
 
     return ts.createTypeLiteralNode(members);

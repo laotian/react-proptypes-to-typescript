@@ -74,6 +74,9 @@ function visitReactClassDeclaration(
         propsInterfaceStatement.heritageClauses,
         interfaceMembers,
     );
+    ts.moveSyntheticComments(newPropsInterfaceStatement, propType);
+
+
     let statements = helpers.replaceItem(sourceFile.statements, propsInterfaceStatement, newPropsInterfaceStatement);
 
     let stateInterfaceStatement = getInterfaceStatement(stateTypeName, sourceFile)!;
@@ -213,7 +216,11 @@ function getPropsTypeOfReactComponentClass(
         staticPropTypesMember.initializer &&
         ts.isObjectLiteralExpression(staticPropTypesMember.initializer)
     ) {
-        return fixPropsInterface(helpers.buildInterfaceFromPropTypeObjectLiteral(staticPropTypesMember.initializer), defaultPropsKeys);
+
+        let propsInterface =  helpers.buildInterfaceFromPropTypeObjectLiteral(staticPropTypesMember.initializer);
+        propsInterface = fixPropsInterface(propsInterface, defaultPropsKeys);
+        helpers.copyComment(staticPropTypesMember, propsInterface);
+        return propsInterface;
     }
 
     const staticPropTypesGetterMember = _.find(classDeclaration.members, member => {
