@@ -64,32 +64,37 @@ function visitReactClassDeclaration(
     const superStateMembers = getProperties(stateTypeName, sourceFile, typeChecker);
     const states = getStatesOfReactComponentClass(classDeclaration, typeChecker, superStateMembers);
 
-    let propsInterfaceStatement = getInterfaceStatement(propTypeName, sourceFile)!;
-    let newPropsInterfaceStatement = ts.updateInterfaceDeclaration(
-        propsInterfaceStatement,
-        propsInterfaceStatement.decorators,
-        propsInterfaceStatement.modifiers,
-        propsInterfaceStatement.name,
-        propsInterfaceStatement.typeParameters,
-        propsInterfaceStatement.heritageClauses,
-        interfaceMembers,
-    );
-    ts.moveSyntheticComments(newPropsInterfaceStatement, propType);
+    let statements = new Array<ts.Statement>();
+    statements =  statements.concat(sourceFile.statements);
 
+    let propsInterfaceStatement = getInterfaceStatement(propTypeName, sourceFile);
+    if(propsInterfaceStatement && propsInterfaceStatement.members.length === 0) {
+        let newPropsInterfaceStatement = ts.updateInterfaceDeclaration(
+            propsInterfaceStatement,
+            propsInterfaceStatement.decorators,
+            propsInterfaceStatement.modifiers,
+            propsInterfaceStatement.name,
+            propsInterfaceStatement.typeParameters,
+            propsInterfaceStatement.heritageClauses,
+            interfaceMembers,
+        );
+        ts.moveSyntheticComments(newPropsInterfaceStatement, propType);
+        statements = helpers.replaceItem(statements, propsInterfaceStatement, newPropsInterfaceStatement);
+    }
 
-    let statements = helpers.replaceItem(sourceFile.statements, propsInterfaceStatement, newPropsInterfaceStatement);
-
-    let stateInterfaceStatement = getInterfaceStatement(stateTypeName, sourceFile)!;
-    let newStateInterfaceStatement = ts.updateInterfaceDeclaration(
-        stateInterfaceStatement,
-        stateInterfaceStatement.decorators,
-        stateInterfaceStatement.modifiers,
-        stateInterfaceStatement.name,
-        stateInterfaceStatement.typeParameters,
-        stateInterfaceStatement.heritageClauses,
-        states,
-    );
-    statements = helpers.replaceItem(statements, stateInterfaceStatement, newStateInterfaceStatement);
+    let stateInterfaceStatement = getInterfaceStatement(stateTypeName, sourceFile);
+    if(stateInterfaceStatement && stateInterfaceStatement.members.length === 0) {
+        let newStateInterfaceStatement = ts.updateInterfaceDeclaration(
+            stateInterfaceStatement,
+            stateInterfaceStatement.decorators,
+            stateInterfaceStatement.modifiers,
+            stateInterfaceStatement.name,
+            stateInterfaceStatement.typeParameters,
+            stateInterfaceStatement.heritageClauses,
+            states,
+        );
+        statements = helpers.replaceItem(statements, stateInterfaceStatement, newStateInterfaceStatement);
+    }
 
     const propTypeRef = ts.createTypeReferenceNode(propTypeName, []);
     const stateTypeRef = ts.createTypeReferenceNode(stateTypeName, []);

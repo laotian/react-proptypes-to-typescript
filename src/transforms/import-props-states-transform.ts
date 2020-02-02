@@ -2,6 +2,7 @@ import * as ts from 'typescript';
 import { statSync } from 'fs';
 import * as helpers from '../helpers';
 import { CompilationOptions } from '../compiler';
+import { setTokenSourceMapRange } from 'typescript';
 
 export type Factory = helpers.TransformFactoryAndRecompile;
 
@@ -74,20 +75,28 @@ function importPropsStatesTransformFactoryFactory(typeChecker: ts.TypeChecker, c
                 }).forEach(statement => {
                     const importDeclaration = statement as ts.ImportDeclaration;
                     if (importDeclaration.importClause) {
-                        let added = [
+                        let importFromBase = [
                             ts.createImportSpecifier(ts.createIdentifier(CLASS_NAMES.props.name), ts.createIdentifier(CLASS_NAMES.props.alias)),
                             ts.createImportSpecifier(ts.createIdentifier(CLASS_NAMES.states.name), ts.createIdentifier(CLASS_NAMES.states.alias))
                         ];
+
+                        const importSpecifierList = new Array<ts.ImportSpecifier>();
                         if (importDeclaration.importClause.namedBindings && ts.isNamedImports(importDeclaration.importClause.namedBindings)) {
-                            // importDeclaration.importClause.namedBindings.element
                             importDeclaration.importClause.namedBindings.elements.forEach(value => {
-                                added.push(value);
+                                importSpecifierList.push(value);
                             })
                         }
+
+                        for(const importSpecifier of importFromBase) {
+                            if(!importSpecifierList.some(specifier=>importSpecifier.name.text === specifier.name.text)){
+                                importSpecifierList.push(importSpecifier);
+                            }
+                        }
+
                         const importClause = ts.updateImportClause(
                             importDeclaration.importClause,
                             importDeclaration.importClause.name,
-                            ts.createNamedImports(added)
+                            ts.createNamedImports(importSpecifierList)
                         );
                         const newImportDeclaration = ts.updateImportDeclaration(importDeclaration,
                             importDeclaration.decorators,
@@ -100,7 +109,7 @@ function importPropsStatesTransformFactoryFactory(typeChecker: ts.TypeChecker, c
                 });
             }
 
-            let propsInterfaceDeclaration: ts.Statement = ts.createInterfaceDeclaration(
+            let propsInterfaceDeclaration = ts.createInterfaceDeclaration(
                 [],
                 [],
                 `${componentName}${CLASS_NAMES.props.name}`,
@@ -108,7 +117,7 @@ function importPropsStatesTransformFactoryFactory(typeChecker: ts.TypeChecker, c
                 customExtend ? [createHeritageClause(CLASS_NAMES.props.alias)] : undefined,
                 [],
             );
-            let statesInterfaceDeclaration: ts.Statement = ts.createInterfaceDeclaration(
+            let statesInterfaceDeclaration = ts.createInterfaceDeclaration(
                 [],
                 [],
                 `${componentName}${CLASS_NAMES.states.name}`,
@@ -116,12 +125,14 @@ function importPropsStatesTransformFactoryFactory(typeChecker: ts.TypeChecker, c
                 customExtend ? [createHeritageClause(CLASS_NAMES.states.alias)] : undefined,
                 [],
             );
-
-            const allTypeDeclarations: ts.Statement[] = [];
-            allTypeDeclarations.push(propsInterfaceDeclaration);
-            allTypeDeclarations.push(statesInterfaceDeclaration);
-
-            statements = ts.createNodeArray(helpers.insertBefore(statements, classDeclaration!, allTypeDeclarations));
+            const interfaceDeclarations: ts.InterfaceDeclaration[] = [propsInterfaceDeclaration, statesInterfaceDeclaration];
+            const addedTypeDeclarations: ts.Statement[] = [];
+            for(const interfaceDeclaration of interfaceDeclarations) {
+                if (!statements.find(statement => ts.isInterfaceDeclaration(statement) && statement.name.text == interfaceDeclaration.name.text)){
+                    addedTypeDeclarations.push(interfaceDeclaration);
+                }
+            }
+            statements = ts.createNodeArray(helpers.insertBefore(statements, classDeclaration!, addedTypeDeclarations));
         }
         return ts.updateSourceFileNode(sourceFile, statements);
     }
