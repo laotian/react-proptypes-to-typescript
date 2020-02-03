@@ -21,6 +21,9 @@ function jsDocTransformFactoryFactory(
 ): helpers.TransformFactoryAndRecompile {
     return  function jsDocTransformFactory(context: ts.TransformationContext) {
             return function jsDocTransform(sourceFile: ts.SourceFile) {
+                if(compilationOptions.disableJsDoc){
+                    return  sourceFile;
+                }
                 ts.forEachChild(sourceFile, visitEach);
                 return sourceFile;
 

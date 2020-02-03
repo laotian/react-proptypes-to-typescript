@@ -22,6 +22,7 @@ import {
     compile,
     TransformFactoryFactory
 } from '../src';
+import { unlinkSync } from 'fs';
 
 
 /** Map between a transform and its test folder */
@@ -47,7 +48,11 @@ for (const [testFolderName, getFactory] of transformToFolderMap) {
                 it(`${testFolderName} ${folderName}`, async () => {
                     const inputPath = path.join(folder, 'input.tsx');
                     const outputPath = path.join(folder, 'output.tsx');
-                    const result = compile(inputPath, getFactory);
+
+                    const tempFile = path.join(folder,'temp_input.tsx');
+                    fs.copyFileSync(inputPath,tempFile);
+                    const result = compile(tempFile, getFactory);
+                    unlinkSync(tempFile);
                     if (isJestUpdateSnapshotEnabled) {
                         await writeFile(outputPath, result);
                     }

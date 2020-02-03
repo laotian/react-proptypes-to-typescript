@@ -7,11 +7,13 @@ import { TransformFactoryFactory } from '.';
 export interface CompilationOptions {
     fixImportAbsolutePath: boolean,
     privatePropertyName: boolean,
+    disableJsDoc: boolean,
 }
 
 const DEFAULT_COMPILATION_OPTIONS: CompilationOptions = {
     fixImportAbsolutePath: true,
     privatePropertyName: true,
+    disableJsDoc: false,
 };
 
 export { DEFAULT_COMPILATION_OPTIONS };
