@@ -50,6 +50,7 @@ export function compile(
             target: ts.ScriptTarget.ES2017,
             module: ts.ModuleKind.ES2015,
             jsx: ts.JsxEmit.Preserve,
+            esModuleInterop: true,
         };
         const program = ts.createProgram([filePath], compilerOptions);
         // `program.getSourceFiles()` will include those imported files,

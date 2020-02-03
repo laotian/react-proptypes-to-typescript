@@ -14,10 +14,7 @@ export function getReactComponentSuperClassName(
             const extendClassType = typeChecker.getTypeAtLocation(firstType);
             // check extend component or subclass of component
             if (extendClassType && extendClassType.getProperties().find(property => property.name === "shouldComponentUpdate")) {
-                if (ts.isIdentifier(firstType.expression)) {
-                    const superComponentName = firstType.expression.text;
-                    return superComponentName;
-                }
+                return firstType.expression.getText();
             }
         }
     }

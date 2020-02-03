@@ -24,8 +24,8 @@ function reactRemoveEmptyPropsAndStatesInterfaceTransformFactoryFactory(typeChec
                 sourceFile.statements.filter(statement =>{
                     if(ts.isClassDeclaration(statement) || ts.isClassExpression(statement)){
                         if(helpers.isReactComponent(statement, typeChecker)){
-                            const expressionWithTypeArguments =    (statement.heritageClauses![0].types[0] as ts.ExpressionWithTypeArguments);
-                            if(expressionWithTypeArguments.typeArguments && ts.isIdentifier(expressionWithTypeArguments.expression)){
+                            const expressionWithTypeArguments =  statement.heritageClauses![0].types[0];
+                            if(expressionWithTypeArguments.typeArguments){
                                 const newTypeArguments = expressionWithTypeArguments.typeArguments.map(typeArgument =>{
                                     if(ts.isTypeReferenceNode(typeArgument) && ts.isIdentifier(typeArgument.typeName)){
                                         const referenceName = typeArgument.typeName.text;
@@ -45,7 +45,7 @@ function reactRemoveEmptyPropsAndStatesInterfaceTransformFactoryFactory(typeChec
                                     return typeArgument;
                                 });
 
-                                const newHeritageClauses = [ts.createHeritageClause(ts.SyntaxKind.ExtendsKeyword, [ts.createExpressionWithTypeArguments(newTypeArguments, ts.createIdentifier(expressionWithTypeArguments.expression.text))])];
+                                const newHeritageClauses = [ts.createHeritageClause(ts.SyntaxKind.ExtendsKeyword, [ts.createExpressionWithTypeArguments(newTypeArguments, expressionWithTypeArguments.expression)])];
                                 if(ts.isClassDeclaration(statement)) {
                                     const  newStatement = ts.updateClassDeclaration(
                                         statement,
