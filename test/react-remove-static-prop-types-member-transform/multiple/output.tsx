@@ -1,8 +1,6 @@
-class SomeComponent extends React.Component<
-  {
-    foo: number
-  },
-  {
-    bar: string
-  }
-> {}
+class SomeComponent extends React.Component<{
+    foo: number;
+}, {
+    bar: string;
+}> {
+}

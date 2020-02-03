@@ -1,19 +1,16 @@
-import * as React from "react";
-interface IMyComponentProps extends React.HTMLAttributes<Element> {
-  baz: string;
+import * as React from 'react';
+interface MyComponentProps {
+    baz: string;
 }
-type MyComponentState = {
-  dynamicState?: number
-};
-export default class MyComponent extends React.Component<
-  IMyComponentProps,
-  MyComponentState
-> {
-  state = { foo: 1, bar: "str" };
-  render() {
-    return <div />;
-  }
-  otherFn() {
-    this.setState({ dynamicState: 42 });
-  }
+interface MyComponentStates {
+    dynamicState?: number;
+}
+export default class MyComponent extends React.Component<MyComponentProps, MyComponentStates> {
+    state = { foo: 1, bar: 'str' };
+    render() {
+        return <div />;
+    }
+    otherFn() {
+        this.setState({ dynamicState: 42 });
+    }
 }

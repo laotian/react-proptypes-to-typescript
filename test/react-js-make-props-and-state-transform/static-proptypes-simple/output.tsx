@@ -1,15 +1,9 @@
-import * as React from "react";
-interface IMyComponentProps extends React.HTMLAttributes<Element> {
-  foo: string;
-}
-export default class MyComponent extends React.Component<
-  IMyComponentProps,
-  {}
-> {
-  static propTypes = {
-    foo: React.PropTypes.string.isRequired
-  };
-  render() {
-    return <div />;
-  }
+import * as React from 'react';
+export default class MyComponent extends React.Component<MyComponentProps, MyComponentStates> {
+    static propTypes = {
+        foo: React.PropTypes.string.isRequired,
+    };
+    render() {
+        return <div />;
+    }
 }

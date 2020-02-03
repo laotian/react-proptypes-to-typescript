@@ -1,6 +1,6 @@
 type HelloProps = {
-  message?: string
+    message?: string;
 };
 const Hello: React.SFC<HelloProps> = ({ message }) => {
-  return <div>hello {message}</div>;
+    return <div>hello {message}</div>;
 };

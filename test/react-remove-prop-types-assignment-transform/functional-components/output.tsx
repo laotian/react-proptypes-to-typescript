@@ -1,2 +1,3 @@
-import * as React from "react";
-function Foo() {}
+import * as React from 'react';
+function Foo() {
+}

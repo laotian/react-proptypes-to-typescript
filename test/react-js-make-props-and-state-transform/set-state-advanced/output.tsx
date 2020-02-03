@@ -1,33 +1,28 @@
-import * as React from "react";
-type MyComponentState = {
-  foo?: number,
-  bar?: number,
-  something?: { big: number, here: string, of: { a: number }[] }
-};
-export default class MyComponent extends React.Component<{}, MyComponentState> {
-  render() {
-    return <button onClick={this.onclick.bind(this)} />;
-  }
-  onclick() {
-    if (Math.random() > 0.5) {
-      this.setState({ foo: 1, bar: 2 });
+import * as React from 'react';
+export default class MyComponent extends React.Component<MyComponentProps, MyComponentStates> {
+    render() {
+        return <button onClick={this.onclick.bind(this)}/>;
     }
-    this.otherMethod();
-  }
-  otherMethod() {
-    for (const foo of [1, 2, 3]) {
-      if (foo > 2) {
-        this.setState({ baz: foo });
-      }
+    onclick() {
+        if (Math.random() > 0.5) {
+            this.setState({ foo: 1, bar: 2 });
+        }
+        this.otherMethod();
     }
-  }
-  addLargeObjectToState() {
-    this.setState({
-      something: {
-        big: 123,
-        here: "string",
-        of: [{ a: 1 }, { a: 2 }]
-      }
-    });
-  }
+    otherMethod() {
+        for (const foo of [1, 2, 3]) {
+            if (foo > 2) {
+                this.setState({ baz: foo });
+            }
+        }
+    }
+    addLargeObjectToState() {
+        this.setState({
+            something: {
+                big: 123,
+                here: 'string',
+                of: [{ a: 1 }, { a: 2 }]
+            }
+        });
+    }
 }

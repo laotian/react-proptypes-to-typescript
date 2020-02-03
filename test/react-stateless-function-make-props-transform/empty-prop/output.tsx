@@ -1,4 +1,4 @@
 const Hello: React.SFC<{}> = () => {
-  return <div />;
+    return <div />;
 };
 Hello.propTypes = {};
