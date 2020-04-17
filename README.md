@@ -107,46 +107,26 @@ npm test
 git clone https://github.com/laotian/react-proptypes-to-typescript.git && cd react-proptypes-to-typescript && npm install && npm run build
 
 2. 转换
-假如要批量更改 目标文件夹 /Users/lupantian/WebstormProjects/RNMainProject/js/RDF/Components/ 下所有的JS文件
+假如要批量更改 目标文件夹  /TARGET_JS_DIR/ 下所有的JS文件
 首先执行:
-node dist/cli.js --rename /Users/lupantian/WebstormProjects/RNMainProject/js/RDF/Components/**
+node dist/cli.js --rename  /TARGET_JS_DIR/**
 把ts自动改名为.tsx(.ts)，然后手动git提交目录文件夹下的文件，
 再次执行:
-node dist/cli.js /Users/lupantian/WebstormProjects/RNMainProject/js/RDF/Components/**
+node dist/cli.js  /TARGET_JS_DIR/**
 完成转换
-最后跟的是要转换的组件位置，支持**和*进行匹配
+
+最后跟的是要转换的组件位置，支持glob区配，如**和*
 
 3.修复
-不允许添加除类型标注外的其它代码
-常见问题:
+在WebStorm上，Project视图中右键点击选中目录文件夹，单点“Fix ESLINT Problems”
+检查并修复常见问题：
 类型限定错误：改为any, 如 const c:any = {};
-TS编译有误，忽略TS错误 // @ts-ignore
- 类型需要强制,可使用关键字as， 如 (componet as View).xxxx
+TS编译有误并不容易修复，可在目标行上添加注释，忽略TS错误 // @ts-ignore
+类型需要强制,可使用关键字as， 如 (componet as View).xxxx
 TS 不支持以/开头的路径导入,如/js/JDBRNKit/JDBRNNativeModules, 需去掉开头的/
 module.exports改为 export {}
-const RDFComponent = {
-    RRXSubTextButton,
-    RDFFutureTextView,
-    RDFIndicatorView,
-    RDFHighlightText,
-    RDFProgressView,
-};
-module.exports = RDFComponent;
-//替换为
-export {
-    RRXSubTextButton,
-    RDFFutureTextView,
-    RDFIndicatorView,
-    RDFHighlightText,
-    RDFProgressView,
-}
 
+4.验证修复
+node dist/cli.js --check  /TARGET_JS_DIR/**
+会检查错误的@ts-ignore/module.exports定义
 
-
-4.修复转换目录的ESLINT错误，可在IDE内右键选中目录，单点“ESLINT”菜单
-
-5.验证编译问题
-在项目根目录执行: ./node_modules/.bin/tsc
-确认没有编译错误
-
-6.删除原来的JS，运行验证无误后提交代码
