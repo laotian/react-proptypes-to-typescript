@@ -101,5 +101,52 @@ Tests are organized in `test` folder. For each transform there is a folder that 
 npm test
 ```
 
-#### 羞耻广告位
-[designare-table: 企业级react table组件, IE11 下性能完胜Ant Design](https://piscium2010.github.io/designare-table)
+#### 使用方法
+
+1. 安装转换脚本
+git clone https://github.com/laotian/react-proptypes-to-typescript.git && cd react-proptypes-to-typescript && npm install && npm run build
+
+2. 转换
+假如要批量更改 目标文件夹 /Users/lupantian/WebstormProjects/RNMainProject/js/RDF/Components/ 下所有的JS文件
+首先执行:
+node dist/cli.js --rename /Users/lupantian/WebstormProjects/RNMainProject/js/RDF/Components/**
+把ts自动改名为.tsx(.ts)，然后手动git提交目录文件夹下的文件，
+再次执行:
+node dist/cli.js /Users/lupantian/WebstormProjects/RNMainProject/js/RDF/Components/**
+完成转换
+最后跟的是要转换的组件位置，支持**和*进行匹配
+
+3.修复
+不允许添加除类型标注外的其它代码
+常见问题:
+类型限定错误：改为any, 如 const c:any = {};
+TS编译有误，忽略TS错误 // @ts-ignore
+ 类型需要强制,可使用关键字as， 如 (componet as View).xxxx
+TS 不支持以/开头的路径导入,如/js/JDBRNKit/JDBRNNativeModules, 需去掉开头的/
+module.exports改为 export {}
+const RDFComponent = {
+    RRXSubTextButton,
+    RDFFutureTextView,
+    RDFIndicatorView,
+    RDFHighlightText,
+    RDFProgressView,
+};
+module.exports = RDFComponent;
+//替换为
+export {
+    RRXSubTextButton,
+    RDFFutureTextView,
+    RDFIndicatorView,
+    RDFHighlightText,
+    RDFProgressView,
+}
+
+
+
+4.修复转换目录的ESLINT错误，可在IDE内右键选中目录，单点“ESLINT”菜单
+
+5.验证编译问题
+在项目根目录执行: ./node_modules/.bin/tsc
+确认没有编译错误
+
+6.删除原来的JS，运行验证无误后提交代码
